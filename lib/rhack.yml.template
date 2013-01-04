@@ -1,0 +1,19 @@
+#ua file: db/useragents.txt 
+#logger:
+#  :out: log/rhack.log
+#scout retry: {host => [Curl::Error subclass, ], }
+#  example.com:
+#  - TimeoutError
+#db: # defaults file @ to RAILS_PATH/config/RAILS_ENV.yml
+#  reconnect: true
+#  encoding: utf8
+#  username: root
+#  adapter: mysql
+#  database: dbname
+#  pool: 5
+#  password:
+#  socket: /var/run/mysqld/mysqld.sock
+#cache: # deprecated
+#  dir: /path/to/cache/dir
+#  table: hack_cache
+#  clean: 30.days
