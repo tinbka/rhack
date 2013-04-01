@@ -8,17 +8,17 @@ rescue LoadError
 end
 
 compile_manifest
-RHACK_VERSION = '0.4.0'
+RHACK_VERSION = '0.4.1'
 begin
     require 'hoe'
     config = Hoe.spec "rhack" do |h|
         h.developer("Sergey Baev", "tinbka@gmail.com")
 
-        h.description = 'Webscraping library based on curb gem extension and libxml-ruby (and optionally Johnson and ActiveRecord)'
-       # h.summary = h.description
+        h.description = 'Ruby Http ACcess Kit -- curl-based web-client for developing web-scrapers/bots'
+        #h.summary = h.description
         h.urls = ['https://github.com/tinbka/rhack']
        
-        h.extra_deps << ['rmtools','>= 1.2.13']
+        h.extra_deps << ['rmtools','>= 1.2.12']
         h.extra_deps << ['rake','>= 0.8.7']
         #h.extra_deps << ['johnson','>= 2.0.0.pre3']
         h.extra_deps << ['libxml-ruby','>= 1.1.3']

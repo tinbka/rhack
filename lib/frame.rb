@@ -34,7 +34,7 @@ module HTTPAccessKit
         'http://' >> uri if uri !~ /^\w+:\/\//
         @loc = uri.parse:uri
         # be careful, if you set :static => false, frame will be unable to use implicit url
-        @static = @opts.fetch(:static, true).b
+        @static = @opts.fetch(:static, true)
       else
         @loc = {}
         @static = false
@@ -76,7 +76,7 @@ module HTTPAccessKit
     end
     
     def inspect
-      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{'scout'.x @ss.size}#{', static' if @static}, cookies #{@ss[0].cookieProc ? 'on' : 'off'}>"
+      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{'scout'.x @ss.size}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookieProc ? 'on' : 'off'}>"
     end
     
     # opts are :eval, :json, :hash, :wait, :proc_result, :save_result, :load_scripts, 
@@ -426,15 +426,28 @@ module HTTPAccessKit
       end
     end
     
+    # :static option now can accept hash with :procotol key, in that case Frame can be relocated to the same domain on another protocol and default protocol would be the value of @static.protocol
     def validate(uri)
       if uri
         loc = uri.parse:uri
         if loc.root and loc.root != @loc.root
-          raise TargetError, "failed to get #{uri} by static frame #{@loc.host}, you should first update it with new target" if @static 
-          @loc.root = loc.root
+          if @static
+            if @static.is Hash
+              if loc.host != @loc.host
+                raise TargetError, "unable to get #{uri} by static frame [#{@static.protocol}://]#{@loc.host}, you should first update it with new target"
+              end
+            else
+              raise TargetError, "unable to get #{uri} by static frame #{@loc.root}, you should first update it with new target"
+            end
+          end
+          @loc.root, @loc.host, @loc.protocol = loc.root, loc.host, loc.protocol
           uri
         elsif !loc.root
           raise TargetError if !@static
+          if @static.is Hash
+            @loc.protocol = @static.protocol
+            @loc.root = @loc.protocol+'://'+@loc.host
+          end
           File.join @loc.root, uri
         else uri
         end
@@ -457,6 +470,8 @@ module HTTPAccessKit
         if opts[:proc_result].is Proc and yres != :skip
           opts[:proc_result].call yres
         end
+      elsif opts[:save_result] or :proc_result.in opts
+        page.res = yres
       end
     end
     

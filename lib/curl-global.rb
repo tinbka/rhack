@@ -3,13 +3,13 @@ module Curl
   
   def execute(unless_allready=false)
     if unless_allready and Curl.status
-      return L.debug "Non-nil status! Avoid executing"
+      return L.log "Non-nil status! Avoid executing"
     end
     if $CarierThread and s = $CarierThread.status
-      L.debug "Carier thread allready started and has status #{s}"
+      L.log "Carier thread allready started and has status #{s}"
     else
       if s = Curl.status(false) then L.warn s end
-      L.debug($CarierThread ? "Resetting Carier thread" : "Setting Carier thread up")
+      L.log($CarierThread ? "Resetting Carier thread" : "Setting Carier thread up")
       $CarierThread = Thread.new {
         error = nil
         begin
@@ -22,7 +22,7 @@ module Curl
           begin
               # with true argument (idle) it would break only if no requests to perform
             break unless $Carier.perform true
-            L.debug "Nothing to perform; idling..."
+            L.log "Nothing to perform; idling..."
           rescue => error
             break
               # but ruby mystically crashes if next sequence occur:
@@ -44,7 +44,7 @@ module Curl
   
   def wait
     if $CarierThread and $CarierThread.status
-      if !(within = Thread.current == $CarierThread)
+      unless within = Thread.current == $CarierThread
         # We can't set `perform' timeout lesser than 1 second in the curl binding
         # because in that case thread status would always be "run"
         # so here we wait for exactly 1 sec
@@ -52,13 +52,14 @@ module Curl
       end
       # Also, if thread do Kernel.sleep, it would skip Curl.wait here
       if !$Carier.sheduled and ($CarierThread.status == 'sleep' or within && $Carier.reqs.empty?)
-        L.debug "No shedule to wait"
+        L.log "No shedule to wait"
       else
-        L.log "Waiting for Carier to complete in #{within ? 'it\'s thread' : Thread.main == Thread.current ? 'main thread' : 'thread '+Thread.current.object_id}"
+        this_thread = within ? 'it\'s thread' : Thread.main == Thread.current ? 'main thread' : 'thread '+Thread.current.object_id
+        L.log "Waiting for Carier to complete in #{this_thread}"
         begin
-          L.log { "Trying to change $CarierThreadIsJoined #{$CarierThreadIsJoined} -> true from #{within ? 'it\'s thread' : Thread.main == Thread.current ? 'main thread' : 'thread '+Thread.current.object_id}" }
+          L.log { "Trying to change $CarierThreadIsJoined #{$CarierThreadIsJoined} -> true from #{this_thread}" }
           if within 
-            L.debug "calling this from one of callbacks to wait for the rest to complete"
+            L.log "calling this from one of callbacks to wait for the rest to complete"
             begin
               $Carier.perform
             rescue RuntimeError => e
@@ -74,12 +75,16 @@ module Curl
           recall!
           L.info "Carier thread recalled by keyboard"
         ensure
-          L.log "trying to change $CarierThreadIsJoined #{$CarierThreadIsJoined} -> false from #{within ? 'it\'s' : 'main'} thread"
+          L.log "trying to change $CarierThreadIsJoined #{$CarierThreadIsJoined} -> false from #{this_thread}"
           if !within
             $CarierThreadIsJoined = false
+            # using Curl#execute from different threads may cause problems here when you don't control input,
+            # for example, in a daemonized ruby process
+            # just do not get $CarierThread joined from non-main thread
             if $CarierThread and e = $CarierThread.value
               # this will raise thread-safely in main thread
               # in case of unrescued error in CarierThread
+              L.log(([e.message]+RMTools.format_trace(e.backtrace))*"\n")
               recall!
               raise e 
             end
@@ -98,23 +103,23 @@ module Curl
   def recall
     L.debug caller
     if $CarierThread
-      L.debug "Recalling Carier thread"
+      L.log "Recalling Carier thread"
       $CarierThread.kill
       sleep 1
     else
-      L.debug "No thread to recall"
+      L.log "No thread to recall"
     end
   end
   alias :stop :recall
   
   def recall!
     if $CarierThread
-      L.info "Recalling thread and resetting Carier!!!"
+      L.warn "Recalling thread and resetting Carier!!!"
       $CarierThread.kill
       $CarierThread = nil
       $Carier.reset
     else
-      L.debug "No thread to recall!"
+      L.log "No thread to recall!"
     end
   end
   alias :stop! :recall!
@@ -147,10 +152,10 @@ module Curl
           e
         end
       else
-        L.debug "Carier Thread is exited without error"
+        L.log "Carier Thread is exited without error"
       end
     else
-      L.debug "There is no Carier Thread atm"
+      L.log "There is no Carier Thread atm"
     end
   end
   alias :st :status

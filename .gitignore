@@ -4,3 +4,5 @@ Makefile
 *.out
 *.o
 *.so
+*.log
+/Gemfile*
