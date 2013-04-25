@@ -31,14 +31,6 @@ static VALUE idCall;
 #endif
 
 VALUE cCurlMulti;
-static void ruby_log(const char* str)
-{
-  rb_funcall(rb_const_get(mCurl, rb_intern("L")), rb_intern("debug"), 1, rb_str_new2(str));
-}
-static void ruby_log_obj(VALUE obj)
-{
-  rb_funcall(rb_const_get(mCurl, rb_intern("L")), rb_intern("debug"), 1, obj);
-}
 
 static long cCurlMutiDefaulttimeout = 100; /* milliseconds */
 
@@ -158,13 +150,6 @@ static VALUE ruby_curl_multi_requests(VALUE self) {
   rb_hash_foreach(rbcm->requests, ruby_curl_multi_requests_callback, result_array);
   
   return result_array;
-}
-static VALUE ruby_curl_multi_running(VALUE self) {
-  ruby_curl_multi *rbcm;
-
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
-
-  return INT2FIX(rbcm->running);
 }
 
 /*
@@ -455,8 +440,6 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
     raise_curl_multi_error_exception(mcode);
   }
   
-  rb_curl_multi_read_info( self, multi_handle );
-  if (rb_block_given_p()) rb_yield(self);
 }
 
 #ifdef _WIN32
@@ -517,78 +500,7 @@ static VALUE curb_select(void *args) {
  *
  * Run multi handles, looping selecting when data can be transfered
  */
-static VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
-  ruby_curl_multi *rbcm;
-  VALUE idle;
-  
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
-  
-  if (!(rbcm->active || rbcm->running)) {
-    rb_scan_args(argc, argv, "01", &idle);
-    if (idle == Qtrue) {
-      
-      if (rb_gv_get("$CarierThreadIsJoined") == Qtrue) {
-        ruby_log("Nothing to perform; recalling...");
-        return Qfalse;
-      }
-      ruby_log("Nothing to perform; idling...");
-      rb_curl_multi_idle_perform(self, rbcm);
-      
-    }
-    else {
-      rb_raise(rb_eRuntimeError, "Nothing to perform");
-    }
-    return Qtrue;
-  }
-  
-  rb_curl_multi_perform(self, rbcm);
-  return Qtrue;
-}
-
-static void rb_curl_multi_idle_perform(VALUE self, ruby_curl_multi *rbcm) {
-  struct timeval tv = {1, 0}; /* sleep time must not be lesser 1 second, otherwise multi thread will always "run" */
-  int rc, maxfd;
-#ifdef _WIN32
-  fd_set crt_fdread, crt_fdwrite, crt_fdexcep;
-#endif
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
-  struct _select_set fdset_args;
-#endif
-  fd_set fdread, fdwrite, fdexcep;
-  FD_ZERO(&fdread);
-  FD_ZERO(&fdwrite);
-  FD_ZERO(&fdexcep);
-#ifdef _WIN32
-  create_crt_fd(&fdread, &crt_fdread);
-  create_crt_fd(&fdwrite, &crt_fdwrite);
-  create_crt_fd(&fdexcep, &crt_fdexcep);
-#endif
-  
-  do {
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
-    fdset_args.maxfd = 0;
-    fdset_args.fdread = &fdread;
-    fdset_args.fdwrite = &fdwrite;
-    fdset_args.fdexcep = &fdexcep;
-    fdset_args.tv = &tv;
-    rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
-#else
-    rc = rb_thread_select(0, &fdread, &fdwrite, &fdexcep, &tv);
-#endif
-    if (rc == -1)
-      rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
-    
-  } while (!(RHASH_TBL(rbcm->requests)->num_entries));
-  
-#ifdef _WIN32
-  cleanup_crt_fd(&fdread, &crt_fdread);
-  cleanup_crt_fd(&fdwrite, &crt_fdwrite);
-  cleanup_crt_fd(&fdexcep, &crt_fdexcep);
-#endif
-  rb_curl_multi_perform(self, rbcm);
-}
-
-void rb_curl_multi_perform(VALUE self, ruby_curl_multi *rbcm) {
+VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   CURLMcode mcode;
   ruby_curl_multi *rbcm;
   int maxfd, rc;
@@ -598,85 +510,102 @@ void rb_curl_multi_perform(VALUE self, ruby_curl_multi *rbcm) {
 #endif
   long timeout_milliseconds;
   struct timeval tv = {0, 0};
+  VALUE block = Qnil;
 #ifdef HAVE_RB_THREAD_BLOCKING_REGION
   struct _select_set fdset_args;
 #endif
+
+  rb_scan_args(argc, argv, "0&", &block);
+
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+
   timeout_milliseconds = cCurlMutiDefaulttimeout;
 
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-  
-  while (rbcm->running) {
+  rb_curl_multi_read_info( self, rbcm->handle );
+  if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+ 
+  do {
+    while (rbcm->running) {
+
 #ifdef HAVE_CURL_MULTI_TIMEOUT
-    /* get the curl suggested time out */
-    mcode = curl_multi_timeout(rbcm->handle, &timeout_milliseconds);
-    if (mcode != CURLM_OK) {
-      raise_curl_multi_error_exception(mcode);
-    }
+      /* get the curl suggested time out */
+      mcode = curl_multi_timeout(rbcm->handle, &timeout_milliseconds);
+      if (mcode != CURLM_OK) {
+        raise_curl_multi_error_exception(mcode);
+      }
 #else
-    /* libcurl doesn't have a timeout method defined, initialize to -1 we'll pick up the default later */
-    timeout_milliseconds = -1;
+      /* libcurl doesn't have a timeout method defined, initialize to -1 we'll pick up the default later */
+      timeout_milliseconds = -1;
 #endif
 
-    if (timeout_milliseconds == 0) { /* no delay */
-      rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-      continue;
-    }
+      if (timeout_milliseconds == 0) { /* no delay */
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        rb_curl_multi_read_info( self, rbcm->handle );
+        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+        continue;
+      }
 
-    if (timeout_milliseconds < 0 || timeout_milliseconds > cCurlMutiDefaulttimeout) {
-      timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
-                                                      /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
-    }
+      if (timeout_milliseconds < 0 || timeout_milliseconds > cCurlMutiDefaulttimeout) {
+        timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
+                                                        /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
+      }
 
-    tv.tv_sec  = 0; /* never wait longer than 1 second */
-    tv.tv_usec = (int)(timeout_milliseconds * 1000); /* XXX: int is the right type for OSX, what about linux? */
+      tv.tv_sec  = 0; /* never wait longer than 1 second */
+      tv.tv_usec = (int)(timeout_milliseconds * 1000); /* XXX: int is the right type for OSX, what about linux? */
 
-    FD_ZERO(&fdread);
-    FD_ZERO(&fdwrite);
-    FD_ZERO(&fdexcep);
+      FD_ZERO(&fdread);
+      FD_ZERO(&fdwrite);
+      FD_ZERO(&fdexcep);
 
-    /* load the fd sets from the multi handle */
-    mcode = curl_multi_fdset(rbcm->handle, &fdread, &fdwrite, &fdexcep, &maxfd);
-    if (mcode != CURLM_OK) {
-      raise_curl_multi_error_exception(mcode);
-    }
-    ruby_log_obj(INT2FIX(maxfd));
+      /* load the fd sets from the multi handle */
+      mcode = curl_multi_fdset(rbcm->handle, &fdread, &fdwrite, &fdexcep, &maxfd);
+      if (mcode != CURLM_OK) {
+        raise_curl_multi_error_exception(mcode);
+      }
 
 #ifdef _WIN32
-    create_crt_fd(&fdread, &crt_fdread);
-    create_crt_fd(&fdwrite, &crt_fdwrite);
-    create_crt_fd(&fdexcep, &crt_fdexcep);
+      create_crt_fd(&fdread, &crt_fdread);
+      create_crt_fd(&fdwrite, &crt_fdwrite);
+      create_crt_fd(&fdexcep, &crt_fdexcep);
 #endif
 
 #ifdef HAVE_RB_THREAD_BLOCKING_REGION
-    fdset_args.maxfd = maxfd+1;
-    fdset_args.fdread = &fdread;
-    fdset_args.fdwrite = &fdwrite;
-    fdset_args.fdexcep = &fdexcep;
-    fdset_args.tv = &tv;
-    rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
+      fdset_args.maxfd = maxfd+1;
+      fdset_args.fdread = &fdread;
+      fdset_args.fdwrite = &fdwrite;
+      fdset_args.fdexcep = &fdexcep;
+      fdset_args.tv = &tv;
+      rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
 #else
-    rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+      rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
 #endif
 
 #ifdef _WIN32
-    cleanup_crt_fd(&fdread, &crt_fdread);
-    cleanup_crt_fd(&fdwrite, &crt_fdwrite);
-    cleanup_crt_fd(&fdexcep, &crt_fdexcep);
+      cleanup_crt_fd(&fdread, &crt_fdread);
+      cleanup_crt_fd(&fdwrite, &crt_fdwrite);
+      cleanup_crt_fd(&fdexcep, &crt_fdexcep);
 #endif
 
-    switch(rc) {
-    case -1:
-      rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
-      break;
-    case 0: /* timeout */
-    default: /* action */
-      rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-      break;
+      switch(rc) {
+      case -1:
+        rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
+        break;
+      case 0: /* timeout */
+      default: /* action */
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        rb_curl_multi_read_info( self, rbcm->handle );
+        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+        break;
+      }
     }
-  }
+
+  } while( rbcm->running );
 
   rb_curl_multi_read_info( self, rbcm->handle );
-  if (rb_block_given_p()) {rb_yield(self);}
+  if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+    
+  return Qtrue;
 }
 
 /* =================== INIT LIB =====================*/

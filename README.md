@@ -1,10 +1,10 @@
 ### RHACK
 [github](https://github.com/tinbka/rhack)
 
-RHACK is Ruby Http ACcess Kit -- curl-based web-client for developing web-scrapers/bots.
+RHACK is Ruby Http ACcess Kit: curl-based web-client framework created for developing web-scrapers/bots.
 
 ##### Features
-* Asynchronous, still EventMachine independent. Synchronization can be turned on with 1sec per waiting penalty
+* Asynchronous, still EventMachine independent. Synchronization can be turned on with fine of 1sec per [bulk] request
 * Fast as on simple queries as on high load. Can process up to thousands (limited by a net interface, of course) different parallel requests of any HTTP method with no penalty
 * Flexibly configurable on 3 levels:
 * * Curl::Easy (simplest request configuration, inherited from [curb gem](http://github.com/taf2/curb))
@@ -17,12 +17,37 @@ RHACK is Ruby Http ACcess Kit -- curl-based web-client for developing web-scrape
 
 It's still randomly documented since it's just my working tool.
 
-#### Expected to complete:
+#### Main goals for 1.x
 
-* Redis-based configurable cache for ::Service and for downloads
-* Full javascript processing, including linked scripts; maybe support of other javascript engines gems
+* Service subclass for OAuth2 with a full set of abstract authorizaztion and API methods. Main idea is a multi-user key-value token storage with a respect of expiration timing.
+* Redis-based cache storage for scrapers data.
+* More agile response processing configuration. Remove :json, :hash etc flags. Instead, define some "before filters" in Page that will have been specified by Frame during request, like these flags do.
+* Route :xhr option to Scout, add some transparent control on user-agents: desktop, mobile, randomly predefined...
+
+#### Main goals for 2.0
+(if it would ever come)
+
+* Full javascript processing, including linked scripts; maybe support of other javascript engines gems.
+* Distributed proxified downloading of large files.
+* Console real-time speedometer for a downloader. Wait... for f--ks sake?
 
 ### CHANGES
+
+##### Version 1.0.0
+
+**::Frame**
+* #initialize: ScoutSquad size can be specified by :scouts option (default still is 10)
+* @static with Hash value is now essentially a default route. :protocol and :host values are used for request where only "path" url is given
+* Fixed weird #run_callbacks! behaviour
+**::Scout**
+* Added explicit cacert loading, cacert.pem by curl.haxx.se lies in <gemdir>/config
+Added rake redis:config: generate rhack.yml -> redis.conf
+**Structural changes**
+* Updated and documented rhack.yml.template that now lies in <gemdir>/config
+* All initialization moved to <gemdir>/lib/rhack.rb, rhack_in.rb stays there for compatibility
+* The gem is now being produced in the bundle style: added Gemfile, .gemspec, etc
+* Frame#get_cached and all its methods related to #dl (downloading) moved to rhack/dl
+* Global variables is replaced by module/class attributes of almost the same names
 
 ##### Version 0.4.1
 
@@ -69,8 +94,7 @@ It's still randomly documented since it's just my working tool.
 
 ### License
 
-RHACK is copyright (c) 2010-2013 Sergey Baev <tinbka@gmail.com>, and released under the terms of the Ruby license. 
-See the LICENSE file for the details. 
-Rhack is also include slightly modified Curb gem extension source code. For original 
-Curb gem code you may want to check ext/curb-original or visit <http://github.com/taf2/curb/tree/master>.
-See the CURB-LICENSE file for the details. 
+RHACK is copyright (c) 2010-2013 Sergey Baev <tinbka@gmail.com>, and released under the terms of the MIT license. 
+See the LICENSE and CURB-LICENSE files for the details. 
+Rhack includes slightly modified Curb gem extension source code. For original 
+Curb gem code you may want to check ext/curb-original directory or visit <http://github.com/taf2/curb/tree/master>.

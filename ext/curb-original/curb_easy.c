@@ -211,10 +211,6 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
   if (rbce->curl) {
     curl_easy_cleanup(rbce->curl);
   }
-  
-  if (rbce->first) {
-    curl_formfree(rbce->first);
-  }
 }
 
 void curl_easy_free(ruby_curl_easy *rbce) {
@@ -705,15 +701,11 @@ static VALUE ruby_curl_easy_post_body_set(VALUE self, VALUE post_body) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   
   curl = rbce->curl;
-  if (rbce->first) {
-    curl_formfree(rbce->first);
-    rbce->first = NULL;
-    rbce->last = NULL;
-  }
-  rbce->multipart_form_post = 0;
+  
   if ( post_body == Qnil ) {
     //rbce->postdata_buffer = Qnil;
-    rb_easy_del("postdata_buffer");    
+    rb_easy_del("postdata_buffer");
+    
   } else {  
     if (rb_type(post_body) == T_STRING) {
       data = StringValuePtr(post_body);
@@ -740,42 +732,6 @@ static VALUE ruby_curl_easy_post_body_set(VALUE self, VALUE post_body) {
     return post_body;
   }
   
-  return Qnil;
-}
-static VALUE ruby_curl_easy_multipart_post_body_set(VALUE self, VALUE ary) {
-  ruby_curl_easy *rbce;
-  CURL *curl;
-  int i;
-  
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl = rbce->curl;
-  if (rbce->first) {
-    curl_formfree(rbce->first);
-    rbce->first = NULL;
-    rbce->last = NULL;
-  }
-  
-  // Make the multipart form
-  rbce->multipart_form_post = 1;
-  for (i=0; i<RARRAY_LEN(ary); i++) {
-    if (rb_obj_is_instance_of(RARRAY_PTR(ary)[i], cCurlPostField)) {
-      append_to_form(RARRAY_PTR(ary)[i], &(rbce->first), &(rbce->last));
-    } 
-    else {
-      if (rbce->first) {
-        curl_formfree(rbce->first);
-        rbce->first = NULL;
-        rbce->last = NULL;
-      }
-      rb_raise(eCurlErrInvalidPostField, "You must use only PostFields with multipart form posts");
-      return Qnil;
-    }
-  }
-  //rbce->postdata_buffer = ary;
-  rb_easy_set("postdata_buffer", post_body);
-
-  curl_easy_setopt(curl, CURLOPT_POST, 0);
-  curl_easy_setopt(curl, CURLOPT_HTTPPOST, rbce->first);
   return Qnil;
 }
 
@@ -2401,12 +2357,6 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
     }
   }
 }
-static VALUE ruby_curl_easy_set_method_get(VALUE self, VALUE onoff) {
-  ruby_curl_easy *rbce;
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl_easy_setopt(rbce->curl, CURLOPT_HTTPGET, RTEST(onoff));
-  return onoff;
-}
 
 /*
  * call-seq:
@@ -3315,7 +3265,6 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "encoding", ruby_curl_easy_encoding_get, 0);
   rb_define_method(cCurlEasy, "useragent=", ruby_curl_easy_useragent_set, 1);
   rb_define_method(cCurlEasy, "useragent", ruby_curl_easy_useragent_get, 0);
-  rb_define_method(cCurlEasy, "multipart_post_body=", ruby_curl_easy_multipart_post_body_set, 1);
   rb_define_method(cCurlEasy, "post_body=", ruby_curl_easy_post_body_set, 1);
   rb_define_method(cCurlEasy, "post_body", ruby_curl_easy_post_body_get, 0);
   rb_define_method(cCurlEasy, "put_data=", ruby_curl_easy_put_data_set, 1);

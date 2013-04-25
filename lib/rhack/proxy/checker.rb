@@ -67,7 +67,7 @@ module RHACK
         }
         target = target.find_is(String) if !target.is String
         pl.each {|pr|
-          sc = Interceptor.new(target, pr, $uas.rand, @opts)
+          sc = Interceptor.new(target, pr, RHACK.useragents.rand, @opts)
           sc.http.on_failure(&fail_proc)
           @ics << sc
         }

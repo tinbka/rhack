@@ -661,7 +661,7 @@ static VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
     rb_scan_args(argc, argv, "01", &idle);
     if (idle == Qtrue) {
       
-      if (rb_gv_get("$CarierThreadIsJoined") == Qtrue) {
+      if (rb_cv_get(mCurl, "@@joined") == Qtrue) {
         ruby_log("Nothing to perform; recalling...");
         return Qfalse;
       }

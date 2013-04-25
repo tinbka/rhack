@@ -1,101 +1,5 @@
 # encoding: utf-8
-module Curl
-  
-  def ITT
-    res = nil
-    HTTPAccessKit::Scout('file://').loadGet(__FILE__) {|c| res = yield}
-    loop {if res then break res else sleep 0.01 end}
-  end
-  module_function :ITT
-  
-  class Response
-    __init__
-    attr_reader :header, :code, :body, :hash, :timestamp, :time, :req, :date, :error
-    
-    def to_s
-      str = '<#'
-      if @error
-        str << "#{@error[0].self_name}: #{@error[1]}"
-      else
-        str << (@header[/\d{3}/] == @code.to_s ? @header : "#{@header[/\S+/]} #{@code}") if @header
-        if @hash.location
-          str << ' '+@req.url if $panic
-          str << ' -> '+@hash.location 
-        end
-        str << " (#{@body ? @body.size.bytes : 'No'} Body)"
-        str << " [#{@timestamp}]" if @timestamp
-      end
-      str << '>'
-    end
-    alias :inspect :to_s
-    
-    def initialize(easy)
-      @hash = {}
-      @timestamp = @date = @header = nil
-      if easy.base.error
-        @error = easy.base.error
-      else
-        if headers = easy.header_str || easy.base.headers
-          headers /= "\r\n"
-          @header = headers.shift
-          headers.each {|h|
-            h /= ': '
-            if h[0]
-              h[0].downcase!
-              if h[0] == 'set-cookie'
-                (@hash.cookies ||= []) << h[1]
-              else
-                @hash[h[0]] = h[1]
-              end
-            end
-          }
-          @timestamp = if @hash.date
-              begin
-                @date = @hash.date.to_time
-              rescue => e
-                (@date = Time.now).strftime("%H:%M:%S")
-                L < "Error #{e.class}:#{e.message} with @hash.date = #{@hash.date.inspect}"
-              end
-              @hash.date[/\d\d:\d\d:\d\d/]
-            else
-              (@date = Time.now).strftime("%H:%M:%S")
-            end
-        end
-        @code	= easy.response_code
-        @body	= easy.body_str 
-        @time	= easy.total_time
-      end
-      
-      @req = {}
-      @req.url	        = easy.last_effective_url
-      @req.headers	= easy.headers
-      if range = easy.headers.Range and range[/(\d+)-(\d+)/]
-        @req.range   = $1.to_i .. $2.to_i
-      end
-      if easy.base and @req.meth = easy.base.last_method and @req.meth == :post
-        @req.body	  = easy.post_body
-        @req.mp	    = easy.multipart_form_post?
-      end
-    end
-    
-    def is(klass)
-      if @error
-        klass == Array || klass = Curl::Response
-      else
-        klass == Curl::Response
-      end
-    end
-  
-    def [](key_or_index)
-      @error ? @error[key_or_index] : @hash[key_or_index.downcase]
-    end
-    
-    alias :headers :hash
-  end
-  
-end
-
-module HTTPAccessKit
+module RHACK
 
   class Cookie
     __init__
@@ -164,7 +68,6 @@ module HTTPAccessKit
             proxy format: ['127.0.0.1', '80'], [2130706433, 80], ['someproxy.com', :WebproxyModule]"%[proxy.inspect, proxy.class]
       end
     end
-    @@retry = RETRY
     
     def initialize(*argv)
       uri, proxy, @ua, @refforge, opts = argv.get_opts ['http://', nil, :rand, 1]
@@ -185,11 +88,13 @@ module HTTPAccessKit
       @cookieProc	= opts[:cp] || opts[:ck]
       @raise_err   	= opts[:raise] # no way to use @raise id, it makes any 'raise' call here fail
       @engine     	= opts[:engine]
-      @timeout    	= opts[:timeout] || $CurlDefaultTimeout || 60
+      @timeout    	= opts[:timeout] || @@timeout || 60
       @post_proc	= @get_proc = @head_proc = Proc::NULL
       update uri
       @retry = opts[:retry] || {}
       @retry = {@uri.host => @retry} if @retry.is Array
+      
+      @http.cacert = @@cacert
     end
     
     def update(uri)
@@ -303,7 +208,7 @@ module HTTPAccessKit
         ref = @uri.root ? uri : (@webproxy ? @http.host : @root)+uri
         header['Referer'] = ref.match(/(.+)[^\/]*$/)[1]           
       end
-      header['User-Agent'] = @ua == :rand ? UAS.rand : @ua if @ua
+      header['User-Agent'] = @ua == :rand ? RHACK.useragents.rand : @ua if @ua
       header
     end
       
@@ -342,13 +247,13 @@ module HTTPAccessKit
     end
     
     def loaded?
-      $Carier.reqs.include? @http
+      Curl.carier.reqs.include? @http
     end
     
     def load!
-      unless $Carier.add @http
-        $Carier.remove @http
-        $Carier.add @http
+      unless Curl.carier.add @http
+        Curl.carier.remove @http
+        Curl.сarier.add @http
       end
     rescue RuntimeError => e
       e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
@@ -373,16 +278,21 @@ module HTTPAccessKit
         end
       }
       @http.on_failure {|c, e|
-        @http.on_complete &Proc::NULL
-        @outdated = true
-        @error = e
-        if retry? e
-          L.debug "#{e[0]} -> reloading scout"
-          #load uri, headers, not_redir, relvl, &callback
-          load! # all params including post_body are still set
+        if e[0] == Curl::Err::CurlOK
+          @error = e
+          # TODO: где-то в сорцах on_failure вызывается по коду 0, видимо из-за стороннего условия, а не должен
+          L.log << "Got Curl::Err::CurlOK, response was: #{c.res}"
         else
-          L.debug "#{e[0]} -> not reloading scout"
-          raise *e if @raise_err
+          @http.on_complete &Proc::NULL
+          @outdated = true
+          if retry? e
+            L.debug "#{e[0]} -> reloading scout"
+            #load uri, headers, not_redir, relvl, &callback
+            load! # all params including post_body are still set
+          else
+            L.debug "#{e[0]} -> not reloading scout"
+            raise *e if @raise_err
+          end
         end
       } if !@http.on_failure
       
@@ -447,143 +357,4 @@ module HTTPAccessKit
     
   end
   
-  class PickError < IndexError
-    def initialize
-      super "can't get scout from empty squad" end
-  end
-
-  class ScoutSquad < Array
-    __init__
-    
-    def initialize(*args)
-      raise ArgumentError, "can't create empty squad" if (num = args.pop) < 1
-      proxies = nil
-      super []
-      if args[0].is Scout
-        s = args[0]
-      else
-        if !args[0].is String
-          args.unshift ''
-          if (opts = args[-1]).is Hash and (opts[:cp] || opts[:ck]).is Hash
-            L.warn "it's useless to setup cookies for untargeted squad!"
-          end
-        end
-        if args[1] and args[1][0].is Array
-          proxies = args[1]
-          args[1] = proxies.shift
-        end
-        self[0] = s = Scout(*args)
-        num -=1
-      end
-      num.times {|i| 
-        self << Scout(s.root+s.path, (proxies ? proxies[i] : s.proxy), s.ua, s.refforge, :ck => s.main_cks, :raise => s.raise_err, :timeout => s.timeout, :retry => s.retry)
-      }
-    end
-    
-    def update uri, forced=nil
-      each {|s| return L.warn "failed to update scout loaded? with url: #{s.http.url}" if s.loaded?} if !forced
-      each {|s| s.update uri}
-    end
-    
-    def untargeted
-      first.root == 'http://'
-    end
-      
-    def rand
-      raise PickError if !b
-      # to_a because reject returns object of this class
-      if scout = to_a.rand {|_|!_.loaded?}; scout
-      else # Curl should run here, otherwise `next'/`rand'-recursion will cause stack overflow
-        raise "Curl must run in order to use ScoutSquad#rand" if !Curl.status
-        #Curl.wait
-        loop {sleep 1; break if $Carier.reqs.size < size}
-        self.rand 
-      end 
-    end
-      
-    def next
-      raise PickError if !b
-      if scout = find {|_|!_.loaded?}; scout
-      else # Curl should run here, otherwise `next'/`rand'-recursion will cause stack overflow
-        raise "Curl must run in order to use ScoutSquad#next" if !Curl.status
-        #Curl.wait
-        loop {sleep 1; break if $Carier.reqs.size < size}
-        self.next
-      end 
-    end
-    
-    def to_s
-      str = '<#ScoutSquad @ '
-      if b
-        if first.webproxy
-          str << "#{first.proxy} ~ "
-        elsif first.proxy
-          str << first.proxy*':'+" ~ " 
-        end
-        str << "#{untargeted ? "no target" : first.root} "
-      end
-      str << "x#{size}>"
-    end
-    alias :inspect :to_s
-    
-  end
-  
-end
-  
-  ### Global scope shortcut methods ###
-  
-module RMTools
-
-  def Get(uri, opts={})
-    raise ArgumentError, "Local uri passed to Get function" if uri[0,1] == '/'
-    $log.debug "Protocol-less uri passed to Get function" if !uri[/^\w+:\/\//]
-    headers	  = opts[:headers]	  || opts[:h]	  || {}
-    proxy	      = opts[:proxy]	    || opts[:pr]	|| $CurlGetProxy
-    ret_body	= opts.fetch(:ret_body, opts.fetch(:b, 1)).b
-    wait	      = opts.fetch(:wait, opts.fetch(:w, !block_given?)).b
-    s	        = HTTPAccessKit::Scout(uri, proxy, opts)
-    buf	    = ret_body ? '' : s.http.res
-    s.raise_err	    ||= opts[:e]
-    s.http.timeout ||= opts[:t]
-    s.loadGet(headers) {|c|
-      if ret_body
-        buf << c.body_str
-      else
-        buf.load_from c.res
-      end
-      yield buf if block_given?
-    }
-    if wait
-      ($CarierThread and $CarierThread.status) ? Curl.wait : $Carier.perform
-    end
-    buf
-  end
-  module_function :Get
-  
-end
-  
-module Enumerable
-  
-  def GetAll(on_count=nil, default_domain=nil, &callback)
-    if on_count
-      len = size
-      counter = 0
-      send(resto(:each_value) ? :each_value : :each) {|uri|
-        uri = File.join(default_domain, uri) if default_domain and (uri[0,1] == '/' or !uri[/^https?:/])
-        Get(uri) {|buf|
-          callback.arity > 1 ?
-            callback.call(buf, counter) :
-            callback.call(buf)
-          if (counter += 1) == len
-            on_count.arity > 0	?
-              on_count.call(buf)	:
-              on_count.call
-          end
-        }
-      }
-    else send(resto(:each_value) ? :each_value : :each) {|uri|
-          Get(uri, &callback)          }
-    end
-  end
-
 end

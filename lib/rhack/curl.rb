@@ -1,0 +1,6 @@
+require 'rhack/curl/easy'
+require 'rhack/curl/multi'
+require 'rhack/curl/post_field'
+require 'rhack/curl/response'
+require 'rhack/curl/global'
+require 'rhack/curl/itt'
