@@ -7,11 +7,11 @@ RHACK is Ruby Http ACcess Kit: curl-based web-client framework created for devel
 * Asynchronous, still EventMachine independent. Synchronization can be turned on with fine of 1sec per [bulk] request
 * Fast as on simple queries as on high load. Can process up to thousands (limited by a net interface, of course) different parallel requests of any HTTP method with no penalty
 * Flexibly configurable on 3 levels:
-* * Curl::Easy (simplest request configuration, inherited from [curb gem](http://github.com/taf2/curb))
-* * ::Scout (Curl::Easy wrapper with transparent cookies and extendable anonimization processing, detailed request/response info, callbacks and retry configuration)
-* * ::Frame (Scout array wrapper with smart request interpretor, load balancing and extendable response processor)
-* Included support of javascript processing on loaded pages (johnson gem)
-* Web-service abstraction for creating scrapers, that implement some examples of how to use this library
+** Curl::Easy (simplest request configuration, inherited from [curb gem](http://github.com/taf2/curb))
+** ::Scout (Curl::Easy wrapper with transparent cookies and extendable anonimization processing, detailed request/response info, callbacks and retry configuration)
+** ::Frame (Scout array wrapper with smart request interpretor, load balancing and extendable response processor)
+* Support of javascript processing on loaded html pages is included (johnson gem)
+* Web-service abstraction implementing some examples of how to use this library
 
 ---
 
@@ -21,8 +21,8 @@ It's still randomly documented since it's just my working tool.
 
 * Service subclass for OAuth2 with a full set of abstract authorizaztion and API methods. Main idea is a multi-user key-value token storage with a respect of expiration timing.
 * Redis-based cache storage for scrapers data.
-* More agile response processing configuration. Remove :json, :hash etc flags. Instead, define some "before filters" in Page that will have been specified by Frame during request, like these flags do.
-* Route :xhr option to Scout, add some transparent control on user-agents: desktop, mobile, randomly predefined...
+* More agile response postprocessing configuration. Instead of using :json, :hash etc as a flag, define some "before filters" in the Page and chain them.
+* Route :xhr option to the Scout; add some transparent control on user-agents: desktop, mobile, randomly predefined...
 
 #### Main goals for 2.0
 (if it would ever come)
@@ -41,6 +41,7 @@ It's still randomly documented since it's just my working tool.
 * Fixed weird #run_callbacks! behaviour
 **::Scout**
 * Added explicit cacert loading, cacert.pem by curl.haxx.se lies in <gemdir>/config
+* Provided support of curl HTTP delete and (experimentally) put verbs: #loadDelete and #loadPut. From Frame, add :verb => (:delete|:put) as an option to #run.
 Added rake redis:config: generate rhack.yml -> redis.conf
 **Structural changes**
 * Updated and documented rhack.yml.template that now lies in <gemdir>/config

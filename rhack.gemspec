@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.files         = `git ls-files`.split($/)
   spec.require_paths = ["lib"]
   
-  spec.add_runtime_dependency "active_support"
+  spec.add_runtime_dependency "activesupport"
   spec.add_runtime_dependency "redis"
   spec.add_runtime_dependency "rmtools", ">= 1.4.0"
   spec.add_runtime_dependency "libxml-ruby"

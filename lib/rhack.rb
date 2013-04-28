@@ -8,7 +8,7 @@ require File.join(here, 'curb_core.so')
 require "rhack/js/johnson"
 
 module RHACK
-  mattr_reader :redis, :config, :useragents
+  mattr_reader :config, :redis, :useragents
   
   Dir.chdir ENV['APP_ROOT'] if ENV['APP_ROOT']
   cfgfile = Dir['{config/,}rhack.yml'].first
@@ -18,7 +18,7 @@ module RHACK
   
   db = config.db || {}
   @@redis = nil
-  if rcfg = config.db.redis
+  if rcfg = db.redis
     begin
       require 'redis'
       @@redis = ::Redis.new(path: rcfg.socket, db: rcfg.db)
@@ -51,9 +51,9 @@ module RHACK
   end
   
   class Scout
-    cattr_accessor :retry, :cacert, :timeout
+    mattr_accessor :retry, :cacert, :timeout
     
-    scout = config.scout || {}
+    scout = RHACK.config.scout || {}
     @@retry   = scout.retry.b || {}
     @@cacert = scout.cacert.b ? File.expand_path(scout.cacert) : File.expand_path('../config/cacert.pem', __FILE__)
   end

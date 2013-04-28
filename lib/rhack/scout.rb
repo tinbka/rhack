@@ -89,7 +89,7 @@ module RHACK
       @raise_err   	= opts[:raise] # no way to use @raise id, it makes any 'raise' call here fail
       @engine     	= opts[:engine]
       @timeout    	= opts[:timeout] || @@timeout || 60
-      @post_proc	= @get_proc = @head_proc = Proc::NULL
+      @post_proc	= @get_proc = @head_proc = @put_proc = @delete_proc = Proc::NULL
       update uri
       @retry = opts[:retry] || {}
       @retry = {@uri.host => @retry} if @retry.is Array
@@ -180,7 +180,7 @@ module RHACK
 
     def mkBody(params, multipart=nil)
       if multipart
-        @http.multipart_post_body = params.map {|k, v|
+        @http.multipart_post_body = @body = params.map {|k, v|
           v = v.call if v.is Proc
           if k =~ /^f:/
             Curl::PostField.file(k[2..-1], "application/octet-stream", 
@@ -193,7 +193,7 @@ module RHACK
           end
         }
       else
-        @http.post_body = params.urlencode
+        @http.post_body = @body = params.urlencode
       end
     end
     
@@ -298,10 +298,38 @@ module RHACK
       
       load!
     end
+    
+    def loadGet(*argv, &callback)
+      uri, opts = argv.get_opts [@path], 
+                     :headers => {}, :redir => false, :relvl => 2
+      # curl_easy_setopt here internally replaces current method by GET
+      @http.get	    = true
+      @last_method	= :get
+      if block_given?
+        @get_proc	  = callback
+      else#if @http.callback != @get_proc
+        callback = @get_proc 
+      end
+      load(uri, opts[:headers], !opts[:redir], opts[:relvl], &callback)
+    end
+
+    def loadDelete(*argv, &callback)
+      uri, opts = argv.get_opts [@path], 
+                     :headers => {}, :redir => false, :relvl => 2
+      # curl_easy_setopt here internally replaces current method by DELETE
+      @http.delete = true
+      @last_method	= :delete
+      if block_given?
+        @delete_proc	= callback
+      else#if @http.callback != @post_proc
+        callback = @delete_proc 
+      end
+      load(uri, opts[:headers], !opts[:redir], opts[:relvl], &callback)
+    end
 
     def loadPost(*argv, &callback)
-      hash, multipart, uri, opts = argv.get_opts [@body, false, @path], 
-                                           :headers => {}, :redir => false, :relvl => 2
+      hash, multipart, uri, opts = argv.get_opts [@body, @http.multipart_form_post?, @path], :headers => {}, :redir => false, :relvl => 2
+      # curl_easy_setopt here internally replaces current method by POST
       mkBody hash, multipart.b
       @last_method	= :post
       if block_given?
@@ -311,16 +339,17 @@ module RHACK
       end
       load(uri, opts[:headers], !opts[:redir], opts[:relvl], &callback)
     end
-    
-    def loadGet(*argv, &callback)
-      uri, opts = argv.get_opts [@path], 
-                     :headers => {}, :redir => false, :relvl => 2
-      @http.get	    = true
-      @last_method	= :get
+
+    def loadPut(*argv, &callback)
+      body_or_file, uri, opts = argv.get_opts [@body, @path], 
+                             :headers => {}, :redir => false, :relvl => 2
+      # curl_easy_setopt here internally replaces current method by PUT
+      @http.put_data = @body = body
+      @last_method	= :put
       if block_given?
-        @get_proc	  = callback
-      else#if @http.callback != @get_proc
-        callback = @get_proc 
+        @put_proc	= callback
+      else#if @http.callback != @post_proc
+        callback = @put_proc 
       end
       load(uri, opts[:headers], !opts[:redir], opts[:relvl], &callback)
     end

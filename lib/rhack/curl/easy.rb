@@ -72,6 +72,10 @@ module Curl
       set :httpget, !!onoff
     end
     
+    def delete=(onoff)
+      set :customrequest, onoff ? 'delete' : nil
+    end
+    
   end
   
 end

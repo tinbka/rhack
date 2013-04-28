@@ -111,6 +111,7 @@ module RHACK
       body, mp, url, opts = args.dup.get_opts [nil, false, nil], @opts
       L.log [body, mp, url, opts]
       zip = opts.delete :zip
+      verb = opts.delete :verb
       many = order = orders = post = false
       # Default options set is for POST
       if mp.is String or mp.kinda Array and !(url.is String or url.kinda Array)
@@ -122,19 +123,23 @@ module RHACK
       elsif body.is String or body.kinda [String]
         L.debug "first parameter (#{body.inspect}) was implicitly taken as url#{' '+body.class if body.kinda Array}, but last paramter is of type #{url.class}, too" if url
         url = body.dup
-      elsif !body then url = nil
+      elsif !body
+        url = nil
       else
         url = url.dup if url
         mp, post = !!mp, true
       end
+      
       if post
-        unless body.is Hash or body.kinda [Hash]
-          raise TypeError, "body of post request must be a hash or hash array, params was
-     (#{args.inspect[1..-2]})"
-        end
+        put = verb == :put
         validate_zip url, body if zip
         if zip or url.kinda Array or body.kinda Array
           many    = true
+          unless put or body.kinda [Hash]
+            raise TypeError, "body of post request must be a hash array, params was
+       (#{args.inspect[1..-2]})"
+          end
+     
           if zip or url.kinda Array
             validate_some url
             orders = zip ? body.zip(url) : url.xprod(body, :inverse)
@@ -142,19 +147,29 @@ module RHACK
             url = validate url
             orders = body.xprod url
           end
-          orders.each {|o| o.unshift :loadPost and o.insert 2, mp}
+          if put
+            orders.each {|o| o.unshift :loadPut}
+          else
+            orders.each {|o| o.unshift :loadPost and o.insert 2, mp}
+          end
         else
+          unless put or body.is Hash
+            raise TypeError, "body of post request must be a hash, params was
+       (#{args.inspect[1..-2]})"
+          end
+     
           url = validate url
-          order = [:loadPost, body, mp, url]
+          order = put ? [:loadPut, body, url] : [:loadPost, body, mp, url]
         end
       else
+        del = verb == :delete
         if url.kinda Array
           many  = true
           validate_some url
-          orders = [:loadGet].xprod url
+          orders = [del ? :loadDelete : :loadGet].xprod url
         else
           url = validate url
-          order = [:loadGet, url]
+          order = [del ? :loadDelete : :loadGet, url]
         end
       end
       if !order.b and !orders.b
@@ -225,14 +240,14 @@ module RHACK
     
     def run_callbacks!(page, opts, &callback)
       # if no callback must have run then page.res is equal to the page
-      # for we can get the page as result of sync as well as async request
+      # so we can get the page as result of sync as well as async request
       page.res = page
       if callback
         yres = callback.call page
         # if we don't want callback to affect page.res 
         # then we should not set :save_result
         if yres != :skip
-          if opts[:save_result] or :proc_result in opts
+          if opts[:save_result] or :proc_result.in opts
             # actually, the "result" is yres and page is its container
             page.res = yres
           end
