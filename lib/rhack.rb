@@ -51,7 +51,8 @@ module RHACK
   end
   
   class Scout
-    mattr_accessor :retry, :cacert, :timeout
+    mattr_reader :cacert
+    mattr_accessor :retry, :timeout
     
     scout = RHACK.config.scout || {}
     @@retry   = scout.retry.b || {}
@@ -62,7 +63,7 @@ end
 
 module Curl
   # $Carier, $CarierThread, $CarierThreadIsJoined respectively
-  mattr_accessor :carier, :carier_thread, :joined
+  mattr_reader :carier, :carier_thread, :joined
   L = RHACK::L
   
   @@carier = Curl::Multi.new
