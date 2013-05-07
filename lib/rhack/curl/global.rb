@@ -1,5 +1,5 @@
 # encoding: utf-8
-module Curl
+class << Curl
   
   def execute(unless_allready=false)
     if unless_allready and status
@@ -40,7 +40,6 @@ module Curl
     end
   end
   alias :run :execute
-  module_function :execute, :run
   
   def wait
     if @@carier_thread and @@carier_thread.status
@@ -98,7 +97,6 @@ module Curl
       wait
     end
   end
-  module_function :wait
   
   def recall
     L.debug caller
@@ -124,7 +122,6 @@ module Curl
     end
   end
   alias :stop! :recall!
-  module_function :recall!, :stop!, :recall, :stop
   
   def reset_carier!
     @@carier.clear!
@@ -144,7 +141,6 @@ module Curl
     execute
   end
   alias :reload! :reset!
-  module_function :reset!, :reset, :reload!, :reload
   
   def status(raise_error=true)
     if @@carier_thread and (s = @@carier_thread.status)
@@ -170,6 +166,5 @@ module Curl
     end
   end
   alias :st :status
-  module_function :status, :st
   
 end
