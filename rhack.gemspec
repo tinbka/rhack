@@ -18,7 +18,7 @@ Gem::Specification.new do |spec|
   
   spec.add_runtime_dependency "activesupport"
   spec.add_runtime_dependency "redis"
-  spec.add_runtime_dependency "rmtools", ">= 1.4.0"
+  spec.add_runtime_dependency "rmtools", ">= 1.3.3"
   spec.add_runtime_dependency "libxml-ruby"
   
   spec.extensions << 'ext/curb/extconf.rb'
