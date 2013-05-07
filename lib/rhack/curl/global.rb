@@ -10,7 +10,7 @@ module Curl
     else
       if s = status(false) then L.warn s end
       L.log(@@carier_thread ? "Resetting Carier thread" : "Setting Carier thread up")
-      @@carier_thread = Thread {
+      @@carier_thread = thread {
         error = nil
         begin
           # "why Thread#value is raising since it never raised before?"
