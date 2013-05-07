@@ -7,7 +7,7 @@ module RHACK
   class Service
     attr_accessor :f
     
-    def initialize(service, frame, *args)
+    def initialize(service, frame=nil, *args)
       @service = service
       # first argument should be a string so that frame won't be static
       @f = frame || Frame(self.class::URI[service] || self.class::URI[:login], *args)

@@ -146,21 +146,24 @@ module Curl
   alias :reload! :reset!
   module_function :reset!, :reset, :reload!, :reload
   
-  def status(raise_e=true)
+  def status(raise_error=true)
     if @@carier_thread and (s = @@carier_thread.status)
       L.log "Carier thread responding with status #{s}"
       s
     elsif @@carier_thread
-      if e = @@carier_thread.value
-        if raise_e
+      begin
+        error = @@carier_thread.value
+      rescue => error
+        L.warn "Carier thread has raised"
+        if raise_error
           recall!
-          raise e
+          raise error
         else
-          L.log "Carier Thread returned #{e.inspect}"
-          e
+          L.log "Carier Thread has catched #{error.inspect}"
+          error
         end
       else
-        L.log "Carier Thread is exited without error"
+        L.log "Carier Thread has exited without error"
       end
     else
       L.log "There is no Carier Thread atm"
