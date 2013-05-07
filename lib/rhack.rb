@@ -55,8 +55,9 @@ module RHACK
     mattr_accessor :retry, :timeout
     
     scout = RHACK.config.scout || {}
-    @@retry   = scout.retry.b || {}
-    @@cacert = scout.cacert.b ? File.expand_path(scout.cacert) : File.expand_path('../config/cacert.pem', __FILE__)
+    @@retry     = scout.retry.b || {}
+    @@timeout = scout.timeout.b || 60
+    @@cacert  = scout.cacert.b ? File.expand_path(scout.cacert) : File.expand_path('../../config/cacert.pem', __FILE__)
   end
   
 end

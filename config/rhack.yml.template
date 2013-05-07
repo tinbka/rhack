@@ -10,6 +10,7 @@ logger:
   :color_log: true
 
 scout:
+  timeout: 60
   # Curl::Error subclasses names for <domain> that will retrigger Scout#load!
   # By default an error will keep Scout from having request done
   retry:
