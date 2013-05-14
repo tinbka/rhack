@@ -21,7 +21,7 @@ module Curl
           end
           loop {
             begin
-                # with true argument (idle) it would break only if no requests to perform
+              # with true argument (idle) it would break only if there is no requests to perform
               break unless @@carier.perform true
               L.log "Nothing to perform; idling..."
             rescue => error
