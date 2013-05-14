@@ -12,7 +12,7 @@ module Curl
     
     def inspect
       rsize = reqs.size
-      "<#Carier #{rsize}#{rsize == 1 ? 'unit' : 'units'}, #{running} executing>"
+      "<#Carier #{rsize} #{rsize == 1 ? 'unit' : 'units'}, #{running} executing>"
     end
     
     

@@ -302,7 +302,6 @@ module RHACK
     def loadGet(*argv, &callback)
       uri, opts = argv.get_opts [@path], 
                      :headers => {}, :redir => false, :relvl => 2
-      # curl_easy_setopt here internally replaces current method by GET
       @http.get	    = true
       @last_method	= :get
       if block_given?
@@ -316,7 +315,6 @@ module RHACK
     def loadDelete(*argv, &callback)
       uri, opts = argv.get_opts [@path], 
                      :headers => {}, :redir => false, :relvl => 2
-      # curl_easy_setopt here internally replaces current method by DELETE
       @http.delete = true
       @last_method	= :delete
       if block_given?
@@ -329,7 +327,7 @@ module RHACK
 
     def loadPost(*argv, &callback)
       hash, multipart, uri, opts = argv.get_opts [@body, @http.multipart_form_post?, @path], :headers => {}, :redir => false, :relvl => 2
-      # curl_easy_setopt here internally replaces current method by POST
+      @http.delete = false
       mkBody hash, multipart.b
       @last_method	= :post
       if block_given?
@@ -343,8 +341,8 @@ module RHACK
     def loadPut(*argv, &callback)
       body_or_file, uri, opts = argv.get_opts [@body, @path], 
                              :headers => {}, :redir => false, :relvl => 2
-      # curl_easy_setopt here internally replaces current method by PUT
-      @http.put_data = @body = body
+      @http.delete = false
+      @http.put_data = @body = body_or_file
       @last_method	= :put
       if block_given?
         @put_proc	= callback

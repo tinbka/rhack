@@ -44,18 +44,22 @@ module Curl
       set :interface, value
     end
 
+    # <host>:<port>
     def url=(u)
       set :url, u
     end
     
+    # <host>:<port>
     def proxy_url=(url)
       set :proxy, url
     end
     
+    # <username>:<password>
     def userpwd=(value)
       set :userpwd, value
     end
     
+    # <username>:<password>
     def proxypwd=(value)
       set :proxyuserpwd, value
     end
@@ -65,15 +69,33 @@ module Curl
     end
     
     def head=(onoff)
-      set :nobody, !!onoff
+      if onoff
+        set :httpget, false
+        set :customrequest, nil
+        set :nobody, true
+      else
+        set :nobody, false
+      end
     end
     
     def get=(onoff)
-      set :httpget, !!onoff
+      if onoff
+        set :nobody, false
+        set :customrequest, nil
+        set :httpget, true
+      else
+        set :httpget, false
+      end
     end
     
     def delete=(onoff)
-      set :customrequest, onoff ? 'delete' : nil
+      if onoff
+        set :nobody, false
+        set :httpget, false
+        set :customrequest, 'DELETE'
+      else
+        set :customrequest, nil
+      end
     end
     
   end

@@ -117,7 +117,6 @@ module Curl
         @@carier_thread.kill
         @@carier_thread = nil
         reset_carier!
-        @@carier.reset
       else
         L.log "No thread to recall!"
       end

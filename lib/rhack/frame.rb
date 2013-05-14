@@ -84,7 +84,7 @@ module RHACK
     
     def inspect
       sssize = @ss.size
-      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{sssize} #{sssize==1 ? 'scout' : 'scouts'}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookieProc ? 'on' : 'off'}>"
+      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{sssize} #{sssize == 1 ? 'scout' : 'scouts'}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookieProc ? 'on' : 'off'}>"
     end
     
     # opts are :eval, :json, :hash, :wait, :proc_result, :save_result, :load_scripts, 

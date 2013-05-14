@@ -55,7 +55,7 @@ module Curl
             end
         end
         @code	= easy.response_code
-        @body	= easy.body_str 
+        @body	= easy.body_str.dup
         @time	= easy.total_time
       end
       
@@ -65,9 +65,11 @@ module Curl
       if range = easy.headers.Range and range[/(\d+)-(\d+)/]
         @req.range   = $1.to_i .. $2.to_i
       end
-      if easy.base and @req.meth = easy.base.last_method and @req.meth == :post
-        @req.body	  = easy.post_body
-        @req.mp	    = easy.multipart_form_post?
+      if easy.base and @req.meth = easy.base.last_method and @req.meth.in [:post, :put]
+        @req.body	  = easy.post_body.dup
+        if @req.meth == :post
+          @req.mp	  = easy.multipart_form_post?
+        end
       end
     end
     
