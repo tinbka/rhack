@@ -7,9 +7,9 @@ RHACK is Ruby Http ACcess Kit: curl-based web-client framework created for devel
 * Asynchronous, still EventMachine independent. Synchronization can be turned on with fine of 1sec per [bulk] request
 * Fast as on simple queries as on high load. Can process up to thousands (limited by a net interface, of course) different parallel requests of any HTTP method with no penalty
 * Flexibly configurable on 3 levels:
-** Curl::Easy (simplest request configuration, inherited from [curb gem](http://github.com/taf2/curb))
-** ::Scout (Curl::Easy wrapper with transparent cookies and extendable anonimization processing, detailed request/response info, callbacks and retry configuration)
-** ::Frame (Scout array wrapper with smart request interpretor, load balancing and extendable response processor)
+  * Curl::Easy (simplest request configuration, inherited from [curb gem](http://github.com/taf2/curb))
+  * Scout (Curl::Easy wrapper with transparent cookies and extendable anonimization processing, detailed request/response info, callbacks and retry configuration)
+  * Frame (Scout array wrapper with smart request interpretor, load balancing and extendable response processor)
 * Support of javascript processing on loaded html pages is included (johnson gem)
 * Web-service abstraction implementing some examples of how to use this library
 
@@ -35,14 +35,16 @@ It's still randomly documented since it's just my working tool.
 
 ##### Version 1.0.0
 
-**::Frame**
+**Frame**
 * #initialize: ScoutSquad size can be specified by :scouts option (default still is 10)
 * @static with Hash value is now essentially a default route. :protocol and :host values are used for request where only "path" url is given
 * Fixed weird #run_callbacks! behaviour
-**::Scout**
+
+**Scout**
 * Added explicit cacert loading, cacert.pem by curl.haxx.se lies in <gemdir>/config
 * Provided support of curl HTTP delete and (experimentally) put verbs: #loadDelete and #loadPut. From Frame, add :verb => (:delete|:put) as an option to #run.
 Added rake redis:config: generate rhack.yml -> redis.conf
+
 **Structural changes**
 * Updated and documented rhack.yml.template that now lies in <gemdir>/config
 * All initialization moved to <gemdir>/lib/rhack.rb, rhack_in.rb stays there for compatibility
@@ -52,30 +54,35 @@ Added rake redis:config: generate rhack.yml -> redis.conf
 
 ##### Version 0.4.1
 
-* Сhanged ::Frame @static behaviour, :static option now accept hash with :procotol key (::Frame#validate comment)
+* Сhanged Frame @static behaviour, :static option now accept hash with :procotol key (Frame#validate comment)
 * Changed log level in curl-global.rb
 * Described the library and *marked down* this readme
 
 ##### Version 0.4
 
-* Fixed bugs
-* * idle execution in Rails application thread
-* * Curl::Easy default callback
-* * some misspelling-bugs
-* Minified ::ScoutSquad#next waiting time
-* ::Service
-* * added meta-methods #login (sync only) and #scrape!(<::Page>)
-* ::Frame
-* * made new cache prototype. Call #use_cache!(false?) for (in)activate and #drop_cache! for clearance
-* * added :xhr exec option
-* ::Page
-* * #title returns full title by default
-* * #html is auto-encoded to UTF-8 during #process
+**Fixed bugs**
+* idle execution in Rails application thread
+* Curl::Easy default callback
+* some misspelling-bugs
+
+**ScoutSquad**
+* Minified #next waiting time
+
+**Service**
+* added meta-methods #login (sync only) and #scrape!(<::Page>)
+
+**Frame**
+* made new cache prototype. Call #use_cache!(false?) for (in)activate and #drop_cache! for clearance
+* added :xhr exec option
+
+**Page**
+* #title returns full title by default
+* #html is auto-encoded to UTF-8 during #process
 
 ##### Version 0.3
 
-* Adjusted cookie processor in accordance with web-servers and entrust redirection process to ::Scout
-* Added some shortcuts to ::Frame and Curl modules
+* Adjusted cookie processor in accordance with web-servers and entrust redirection process to Scout
+* Added some shortcuts to Frame and Curl modules
 * Сonfig defaults are now taken from rails
 * Removed crappy database usage from lib/words.rb
 * curb_multi.c: Moved callbacks out of rb_rescue so that I could know wtf was happen there
