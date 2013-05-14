@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Sergey Baev"]
   spec.email         = ["tinbka@gmail.com"]
   spec.description   = %q{RHACK is Ruby Http ACcess Kit: curl-based web-client framework created for developing web-scrapers/bots.\n\nFeatures:\nAsynchronous, still EventMachine independent\nFast as on simple queries as on high load\n3 levels of flexible configuration\nWeb-client abstraction for creating scrapers included}
-  spec.summary       = %q{RHACK is Ruby Http ACcess Kit: curl-based web-client framework created for developing web-scrapers/bots}
+  spec.summary       = %q{Curl-based web-client framework created for developing web-scrapers/bots}
   spec.homepage      = "https://github.com/tinbka/rhack"
   spec.license       = "MIT"
 
