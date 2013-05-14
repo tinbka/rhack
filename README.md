@@ -35,22 +35,23 @@ It's still randomly documented since it's just my working tool.
 
 ##### Version 1.0.0
 
-**Frame**
-* #initialize: ScoutSquad size can be specified by :scouts option (default still is 10)
-* @static with Hash value is now essentially a default route. :protocol and :host values are used for request where only "path" url is given
-* Fixed weird #run_callbacks! behaviour
+* Frame
+  * #initialize: ScoutSquad size can be specified by :scouts option (default still is 10)
+  * @static with Hash value is now essentially a default route. :protocol and :host values are used for request where only "path" url is given
+  * Fixed weird #run_callbacks! behaviour
 
-**Scout**
-* Added explicit cacert loading, cacert.pem by curl.haxx.se lies in <gemdir>/config
-* Provided support of curl HTTP delete and (experimentally) put verbs: #loadDelete and #loadPut. From Frame, add :verb => (:delete|:put) as an option to #run.
-Added rake redis:config: generate rhack.yml -> redis.conf
+* Scout
+  * Added explicit cacert loading, cacert.pem by curl.haxx.se lies in <gemdir>/config
+  * Provided support of curl HTTP delete and (experimentally) put verbs: #loadDelete and #loadPut. From Frame, add :verb => (:delete|:put) as an option to #run.
 
-**Structural changes**
-* Updated and documented rhack.yml.template that now lies in <gemdir>/config
-* All initialization moved to <gemdir>/lib/rhack.rb, rhack_in.rb stays there for compatibility
-* The gem is now being produced in the bundle style: added Gemfile, .gemspec, etc
-* Frame#get_cached and all its methods related to #dl (downloading) moved to rhack/dl
-* Global variables is replaced by module/class attributes of almost the same names
+* Structural changes
+  * Updated and documented rhack.yml.template that now lies in <gemdir>/config
+  * All initialization moved to <gemdir>/lib/rhack.rb, rhack_in.rb stays there for compatibility
+  * The gem is now being produced in the bundle style: added Gemfile, .gemspec, etc
+  * Frame#get_cached and all its methods related to #dl (downloading) moved to rhack/dl
+  * Global variables is replaced by module/class attributes of almost the same names
+
+* Added rake redis:config: generate rhack.yml -> redis.conf
 
 ##### Version 0.4.1
 
@@ -60,24 +61,24 @@ Added rake redis:config: generate rhack.yml -> redis.conf
 
 ##### Version 0.4
 
-**Fixed bugs**
-* idle execution in Rails application thread
-* Curl::Easy default callback
-* some misspelling-bugs
+* Fixed bugs
+  * idle execution in Rails application thread
+  * Curl::Easy default callback
+  * some misspelling-bugs
 
-**ScoutSquad**
-* Minified #next waiting time
+* ScoutSquad
+  * Minified #next waiting time
 
-**Service**
-* added meta-methods #login (sync only) and #scrape!(<::Page>)
+* Service
+  * added meta-methods #login (sync only) and #scrape!(<::Page>)
 
-**Frame**
-* made new cache prototype. Call #use_cache!(false?) for (in)activate and #drop_cache! for clearance
-* added :xhr exec option
+* Frame
+  * made new cache prototype. Call #use_cache!(false?) for (in)activate and #drop_cache! for clearance
+  * added :xhr exec option
 
-**Page**
-* #title returns full title by default
-* #html is auto-encoded to UTF-8 during #process
+* Page
+  * #title returns full title by default
+  * #html is auto-encoded to UTF-8 during #process
 
 ##### Version 0.3
 
