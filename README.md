@@ -52,7 +52,11 @@ It's still randomly documented since it's just my working tool.
   * All initialization moved to <gemdir>/lib/rhack.rb, rhack_in.rb stays there for compatibility
   * The gem is now being produced in the bundle style: added Gemfile, .gemspec, etc
   * ::Frame#get_cached and all its methods related to #dl (downloading) moved to rhack/dl
-  * Global variables is replaced by module/class attributes of almost the same names
+  * Global variables is replaced by module attributes of respective names
+
+* Persistence
+  * Removed every reference to SQL: /cache.rb, /words.rb (removed) and /extensions/declarative.rb (moved to rmtools project as optional part)
+  * Made a foundation for Redis support, redis-based storage itself is coming the very next version
 
 * Added rake redis:config: generate rhack.yml -> redis.conf
 
