@@ -38,11 +38,11 @@ It's still randomly documented since it's just my working tool.
 * ::Frame
   * #initialize: ::ScoutSquad size can be specified by :scouts option (default still is 10)
   * @static with Hash value is now essentially a default route. :protocol and :host values are used for request where only "path" url is given
-  * Fixed weird #run_callbacks! behaviour
+  * Fixed weird #run_callbacks! and :raw behaviour
 
-* Scout
+* ::Scout
   * Added explicit cacert loading, cacert.pem by curl.haxx.se lies in <gemdir>/config
-  * Provided support of curl HTTP delete and (experimentally) put verbs: #loadDelete and #loadPut. From a frame, add :verb => (:delete|:put) as an option to #run.
+  * Provided support of curl HTTP DELETE and PUT verbs: #loadDelete and #loadPut. From a frame, add :verb => (:delete|:put) as an option to #run.
 
 * Structural changes
   * Updated and documented rhack.yml.template that now lies in <gemdir>/config

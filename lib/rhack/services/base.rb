@@ -10,7 +10,7 @@ module RHACK
     def initialize(service, frame=nil, *args)
       @service = service
       # first argument should be a string so that frame won't be static
-      @f = frame || Frame(self.class::URI[service] || self.class::URI[:login], *args)
+      @f = frame || Frame(URI(service) || URI(login), *args)
     end
     
     # Usable only for sync requests
@@ -18,8 +18,8 @@ module RHACK
       Curl.run
       @f[0].cookies.clear
       json, wait, @f.opts[:json], @f.opts[:wait] = @f.opts[:json], @f.opts[:wait], false, true
-      yield @f.get(self.class::URI[:login])
-      @f.get(self.class::URI[:home]) if self.class::URI[:home]
+      yield @f.get(URI :login)
+      @f.get(URI :home) if URI :home
       @f.opts[:json], @f.opts[:wait] = json, wait
       @f.copy_cookies!
     end
@@ -36,6 +36,10 @@ module RHACK
       if url = next_url(page)
         @f.get(url) {|next_page| scrape!(next_page)}
       end
+    end
+    
+    def URI(key)
+      self.class::URI[key]
     end
         
     def inspect

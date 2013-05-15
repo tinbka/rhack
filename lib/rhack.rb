@@ -80,6 +80,7 @@ end
 HTTPAccessKit = RHACK
 
 require "rhack/curl"
+require "rhack/cookie"
 require "rhack/scout"
 require "rhack/scout_squad"
 require "rhack/frame"
