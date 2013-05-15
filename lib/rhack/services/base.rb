@@ -6,6 +6,7 @@ module RHACK
 
   class Service
     attr_accessor :f
+    alias_constant :URI
     
     def initialize(service, frame=nil, *args)
       @service = service
@@ -36,10 +37,6 @@ module RHACK
       if url = next_url(page)
         @f.get(url) {|next_page| scrape!(next_page)}
       end
-    end
-    
-    def URI(key)
-      self.class::URI[key]
     end
         
     def inspect
