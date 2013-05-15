@@ -11,7 +11,7 @@ module RHACK
     def initialize(service, frame=nil, *args)
       @service = service
       # first argument should be a string so that frame won't be static
-      @f = frame || Frame(URI(service) || URI(login), *args)
+      @f = frame || Frame(URI(service) || URI(:login), *args)
     end
     
     # Usable only for sync requests
