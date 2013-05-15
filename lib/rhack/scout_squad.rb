@@ -47,9 +47,16 @@ module RHACK
       # to_a because reject returns object of this class
       if scout = to_a.rand {|_|!_.loaded?}; scout
       else # Curl should run here, otherwise `next'/`rand'-recursion will cause stack overflow
-        raise "Curl must run in order to use ScoutSquad#rand" if !Curl.status
+        unless Curl.status
+          L.log "Curl must run in order to use ScoutSquad#rand; setting Carier Thread"
+          Curl.execute
+          #raise "Curl must run in order to use ScoutSquad#rand"
+        end
         #Curl.wait
-        loop {sleep 1; break if $Carier.reqs.size < size}
+        loop {
+          sleep 1
+          break if Curl.carier.reqs.size < size
+        }
         self.rand 
       end 
     end
@@ -58,9 +65,16 @@ module RHACK
       raise PickError if !b
       if scout = find {|_|!_.loaded?}; scout
       else # Curl should run here, otherwise `next'/`rand'-recursion will cause stack overflow
-        raise "Curl must run in order to use ScoutSquad#next" if !Curl.status
+        unless Curl.status
+          L.log "Curl must run in order to use ScoutSquad#next; setting Carier Thread"
+          Curl.execute :unless_allready
+          #raise "Curl must run in order to use ScoutSquad#next"
+        end
         #Curl.wait
-        loop {sleep 1; break if $Carier.reqs.size < size}
+        loop {
+          sleep 1
+          break if Curl.carier.reqs.size < size
+        }
         self.next
       end 
     end

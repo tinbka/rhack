@@ -240,21 +240,22 @@ module RHACK
     
     def run_callbacks!(page, opts, &callback)
       # if no callback must have run then page.res is equal to the page
-      # so we can get the page as result of sync as well as async request
+      # so we can get the page as result of a sync as well as an async request
       page.res = page
       if callback
         yres = callback.call page
         # if we don't want callback to affect page.res 
         # then we should not set :save_result
         if yres != :skip
-          if opts[:save_result] or :proc_result.in opts
-            # actually, the "result" is yres and page is its container
+          if opts[:proc_result].is Proc
+            # yres is intermediate result that we should proc
+            page.res = opts[:proc_result].call yres
+          elsif opts[:save_result] or :proc_result.in opts
+            # yres is total result that we should save
             page.res = yres
           end
-          if opts[:proc_result].is Proc
-            # and yres is the object we should "proc"
-            opts[:proc_result].call yres
-          end
+          # in both cases page.res is set to total result
+          # so we can return result from any depth as @res attribute of what we have on top
         end
       end
     end

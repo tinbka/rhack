@@ -3,18 +3,17 @@ module Curl
   class << Curl
     
     def execute(unless_allready=false)
-      if unless_allready and status
-        return L.log "Non-nil status! Avoid executing"
-      end
+      #if unless_allready and status
+      #  return L.log "Carier allready executing"
+      #end
       if @@carier_thread and s = @@carier_thread.status
-        L.log "Carier thread allready started and has status #{s}"
+        L.log "Carier Thread allready started and has status #{s}"
       else
         if s = status(false) then L.warn s end
         L.log(@@carier_thread ? "Resetting Carier thread" : "Setting Carier thread up")
         @@carier_thread = thread {
           error = nil
           begin
-            # "why Thread#value is raising since it never raised before?"
             yield if block_given?
           rescue => error
             nil
@@ -22,17 +21,20 @@ module Curl
           loop {
             begin
               # with true argument (idle) it would break only if there is no requests to perform
+              # and still carier thread is joined
               break unless @@carier.perform true
-              L.log "Nothing to perform; idling..."
+              L.log "All requests have been performed; idling..."
             rescue => error
+              L.log "Catched #{error.class.name} in Carier Thread"
               break
-                # but ruby mystically crashes if next sequence occur:
-                # Multi performs and can't see any requests so entering idle mode
-                # we add some requests and multi load them
-                # one of requests' callbacks raises error in *main* thread
-                # so we can't allow any raises here, instead, keep them in 'wait' section
+              # but ruby mystically crashes if next sequence occur:
+              # Multi performs and can't see any requests so entering idle mode
+              # we add some requests and multi load them
+              # one of requests' callbacks raises error in *main* thread
+              # so we can't allow any raises here, instead, keep them in 'wait' section
             end
           } unless error
+          L.log "Nothing to perform; recalling..."
           error
         }
         # until main thread has sleep a bit, $CarierThread will have status "run", 
@@ -73,7 +75,7 @@ module Curl
             end
           rescue (defined?(IRB) ? IRB::Abort : NilClass)
             recall!
-            L.info "Carier thread recalled by keyboard"
+            L.info "Carier Thread recalled by a keyboard"
           ensure
             L.log "trying to change Curl.joined #@@joined -> false from #{this_thread}"
             if !within
@@ -144,13 +146,14 @@ module Curl
     
     def status(raise_error=true)
       if @@carier_thread and (s = @@carier_thread.status)
-        L.log "Carier thread responding with status #{s}"
+        L.log "Carier Thread responding with status #{s}"
         s
       elsif @@carier_thread
         begin
+          # status = nil
           error = @@carier_thread.value
         rescue => error
-          L.warn "Carier thread has raised"
+          L.warn "Carier Thread has raised an exception"
           if raise_error
             recall!
             raise error
@@ -159,7 +162,8 @@ module Curl
             error
           end
         else
-          L.log "Carier Thread has exited without error"
+          # status = false
+          L.log "Carier Thread has exited without an exception"
         end
       else
         L.log "There is no Carier Thread atm"

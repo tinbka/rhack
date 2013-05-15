@@ -1,5 +1,14 @@
 # encoding: utf-8
 
+class Class
+  def alias_constant(name)
+    class_eval %{
+    def #{name}(key=nil)
+      key ? self.class::#{name}[key] : self.class::#{name}
+    end}
+  end unless defined? alias_constant
+end
+
 # Вызовы сервисов всегда ждут и возвращают обработанный ответ, если вызвваны без блока. 
 # В противном случае используется событийная модель и обработанный ответ передаётся в блок.
 module RHACK
