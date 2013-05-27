@@ -1,19 +1,11 @@
 # encoding: utf-8
 
-class Class
-  def alias_constant(name)
-    class_eval %{
-    def #{name}(key=nil)
-      key ? self.class::#{name}[key] : self.class::#{name}
-    end}
-  end unless defined? alias_constant
-end
-
-# Вызовы сервисов всегда ждут и возвращают обработанный ответ, если вызвваны без блока. 
-# В противном случае используется событийная модель и обработанный ответ передаётся в блок.
+# TODO 1.0+: опция для клиента, чтобы это описание имело смысл, т.к. сейчас это ложь:
+#   Вызовам клиентов всегда следует ждут и возвращают обработанный ответ, если вызвваны без блока. 
+#   В противном случае используется событийная модель и обработанный ответ передаётся в блок.
 module RHACK
 
-  class Service
+  class Client
     attr_accessor :f
     alias_constant :URI
     
@@ -54,6 +46,5 @@ module RHACK
     
   end
   
-  class ServiceError < Exception; end
-  
+  class ClientError < Exception; end
 end

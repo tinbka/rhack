@@ -92,20 +92,13 @@ module RHACK
     end
     alias :inspect :to_s
     
-    def update_res
-      @outdated = false
-      @res = @http.res
-      @headers = nil
-      @res
-    end
-    
     def res
-      if @res && !@outdated
-             @res
-      else update_res end
+      @http.res
     end
     
-    def req; res.req   end
+    def req 
+      res.req
+    end
     
     def dump
       str = "IP: #{@proxystr}\nRequest: "
@@ -222,7 +215,7 @@ module RHACK
 
       @http.on_complete {|c|
         @error = nil
-        @outdated = true
+        c.outdate!
         ProcCookies c.res if @cookieProc
         # We cannot just cancel on_complete in on_redirect block
         # because loadGet will immediately reset on_complete back
@@ -239,7 +232,7 @@ module RHACK
           L.log << "Got Curl::Err::CurlOK, response was: #{c.res}"
         else
           @http.on_complete &Proc::NULL
-          @outdated = true
+          c.outdate!
           if retry? e
             L.debug "#{e[0]} -> reloading scout"
             #load uri, headers, not_redir, relvl, &callback

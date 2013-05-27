@@ -5,15 +5,24 @@ module Curl
     __init__
     attr_accessor :base
     
-    def res
-      Response(self)
+    def outdate!
+      @outdated = true
     end
-    alias response res
+    
+    def res
+      if @res && !@outdated
+        @res
+      else 
+        @outdated = false
+        @res = Response(self)
+      end
+    end
+    alias :response :res
     
     def req
       res.req
     end
-    alias request req
+    alias :request :req
     
     def host
       url.parse(:uri).root
