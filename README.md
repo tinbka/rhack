@@ -11,7 +11,7 @@ RHACK is Ruby Http ACcess Kit: curl-based web-client framework created for devel
   * ::Scout (Curl::Easy wrapper with transparent cookies and extendable anonimization processing, detailed request/response info, callbacks and retry configuration)
   * ::Frame (Scout array wrapper with smart request interpretor, load balancing and extendable response processor)
 * Support of javascript processing on loaded html pages is included (johnson gem)
-* Web-service abstraction implementing some examples of how to use this library
+* Web-service-client abstraction implementing some examples of how to use this library
 
 ---
 
@@ -19,7 +19,7 @@ It's still randomly documented since it's just my working tool.
 
 #### Main goals for 1.x
 
-* Service subclass for OAuth2 with a full set of abstract authorizaztion and API methods. Main idea is a per-user key-value token storage with a respect of expiration timing.
+* Client subclass for OAuth2 with a full set of abstract authorizaztion and API methods. Main idea is a per-user key-value token storage with a handling of tokens expiration.
 * Redis-based cache storage for scrapers data.
 * More agile response postprocessing configuration. Instead of using :json, :hash etc as a flag, define some "before filters" in the Page and chain them.
 * Route :xhr option to the Scout; add some transparent control on user-agents: desktop, mobile, randomly predefined...
@@ -46,6 +46,9 @@ It's still randomly documented since it's just my working tool.
   
 * ::ScoutSquad
   * Automatically Curl.execute on #next and #rand if Carier Thread is exited without an exception
+  
+* ::Service
+  * Is renamed to Client what is more sensible. RHACK::Service is still usable as alias
 
 * Structural changes
   * Updated and documented rhack.yml.template that now lies in <gemdir>/config

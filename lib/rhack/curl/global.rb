@@ -6,7 +6,7 @@ module Curl
       #if unless_allready and status
       #  return L.log "Carier allready executing"
       #end
-      if @@carier_thread and s = @@carier_thread.status(false)
+      if @@carier_thread and s = @@carier_thread.status
         L.log "Carier Thread allready started and has status #{s}"
       else
         if s = status(false) then L.warn s end
