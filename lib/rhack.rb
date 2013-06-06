@@ -15,6 +15,7 @@ module RHACK
   @@config = cfgfile ? YAML.load(IO.read(cfgfile)) : {}
   
   L = RMTools::RMLogger.new(config.logger || {})
+  # L is automatically included in any module under RHACK
   
   db = config.db || {}
   @@redis = nil
@@ -85,3 +86,4 @@ require "rhack/scout"
 require "rhack/scout_squad"
 require "rhack/frame"
 require "rhack/page"
+require "rhack/storage"

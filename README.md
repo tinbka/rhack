@@ -19,8 +19,6 @@ It's still randomly documented since it's just my working tool.
 
 #### Main goals for 1.x
 
-* Client subclass for OAuth2 with a full set of abstract authorizaztion and API methods. Main idea is a per-user key-value token storage with a handling of tokens expiration.
-* Redis-based cache storage for scrapers data.
 * More agile response postprocessing configuration. Instead of using :json, :hash etc as a flag, define some "before filters" in the Page and chain them.
 * Route :xhr option to the Scout; add some transparent control on user-agents: desktop, mobile, randomly predefined...
 
@@ -32,6 +30,17 @@ It's still randomly documented since it's just my working tool.
 * Console real-time speedometer for a downloader. Wait... for f--ks sake?
 
 ### CHANGES
+
+##### Version 1.1.0
+
+* ::OAuthClient < ::Client
+  * A full set of abstract OAuth2 authorizaztion and API methods
+  * Per-user key-value oauth_token storage
+  * Handling of tokens expiration
+  * Fit for, at least, facebook.com, linkedin.com and vk.com
+  
+* ::Storage
+  * Wrapper of Redis-based storage to handily store/cache scrapers data
 
 ##### Version 1.0.0
 
