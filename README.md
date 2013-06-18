@@ -37,7 +37,7 @@ It's still randomly documented since it's just my working tool.
   * A full set of abstract OAuth2 authorizaztion and API methods
   * Per-user key-value oauth_token storage
   * Handling of tokens expiration
-  * Fit for, at least, facebook.com, linkedin.com and vk.com
+  * Fits for, at least, facebook.com, linkedin.com and vk.com
   
 * ::Storage
   * Wrapper of Redis-based storage to handily store/cache scrapers data
@@ -58,6 +58,7 @@ It's still randomly documented since it's just my working tool.
   
 * ::Service
   * Is renamed to Client what is more sensible. RHACK::Service is still usable as alias
+  * require 'rhack/clients' <-> require 'rhack/services'
 
 * Structural changes
   * Updated and documented rhack.yml.template that now lies in <gemdir>/config
