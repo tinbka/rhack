@@ -31,6 +31,10 @@ It's still randomly documented since it's just my working tool.
 
 ### CHANGES
 
+##### Version 1.1.2
+
+* Catch weird Curl::Err::CurlOK being thrown on some pages
+
 ##### Version 1.1.0
 
 * ::OAuthClient < ::Client

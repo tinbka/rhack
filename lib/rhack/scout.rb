@@ -226,10 +226,11 @@ module RHACK
         end
       }
       @http.on_failure {|c, e|
+        @error = e
         if e[0] == Curl::Err::CurlOK
-          @error = e
-          # TODO: где-то в сорцах on_failure вызывается по коду 0, видимо из-за стороннего условия, а не должен
-          L.log << "Got Curl::Err::CurlOK, response was: #{c.res}"
+          # в сорцах on_failure не вызывается по коду 0, это какой-то глюк
+          # в любом случае такой поворот не означает ошибки
+          L.warn "Got Curl::Err::CurlOK, response was: #{c.res}"
         else
           @http.on_complete &Proc::NULL
           c.outdate!
