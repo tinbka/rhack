@@ -178,11 +178,7 @@ static VALUE ruby_curl_multi_idle(VALUE self) {
   
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
   
-  if (RHASH_LEN(rbcm->requests))
-    return Qfalse;
-  } else {
-    return Qtrue;
-  }
+  return RHASH_LEN(rbcm->requests) ? Qfalse : Qtrue;
 }
 
 /*
