@@ -637,7 +637,8 @@ static void rb_curl_multi_idle_perform(VALUE self, ruby_curl_multi *rbcm) {
     if (rc == -1)
       rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
     
-  } while (!RHASH_LEN(rbcm->requests));
+  //} while (!RHASH_LEN(rbcm->requests));
+  } while (!(RHASH_TBL(rbcm->requests)->num_entries));
   
 #ifdef _WIN32
   cleanup_crt_fd(&fdread, &crt_fdread);

@@ -31,7 +31,7 @@ It's still randomly documented since it's just my working tool.
 
 ### CHANGES
 
-##### Version 1.1.5
+##### Version 1.1.6
 
 * ::Frame
   * Moved `Curl.execute` from *initialize* to *on after request added*
@@ -39,8 +39,6 @@ It's still randomly documented since it's just my working tool.
   
 * ::ScoutSquad
   * Finally stabilized #next and #rand time management for parallel recursive execution
-  
-* Fixed freeing of Curl::Easy handlers in `curl_multi_free'
 
 ##### Version 1.1.3
 
