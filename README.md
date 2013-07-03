@@ -31,9 +31,24 @@ It's still randomly documented since it's just my working tool.
 
 ### CHANGES
 
-##### Version 1.1.2
+##### Version 1.1.4
 
-* Catch weird Curl::Err::CurlOK being thrown on some pages
+* ::Frame
+  * Moved `Curl.execute` from *initialize* to *on after request added*
+  
+* ::ScoutSquad
+  * Finally stabilized #next and #rand time management for parallel recursive execution
+
+##### Version 1.1.3
+
+* ::Frame
+  * Added #anchor
+  
+* ::Scout
+  * Fixed #update
+  * Catch weird Curl::Err::CurlOK being thrown on some pages
+
+* Fixed some exceptions messages
 
 ##### Version 1.1.0
 

@@ -54,7 +54,7 @@ module RHACK
     
     def update(uri)
       if !uri[/^\w+:\/\//]
-        '/' >> uri if uri[0,1] != '/'
+        uri = '/' + uri if uri[0,1] != '/'
         @uri = uri.parse:uri
         return                       
       end
@@ -198,6 +198,10 @@ module RHACK
       Curl.carier.reqs.include? @http
     end
     
+    def available?
+      !loaded?
+    end
+    
     def load!
       unless Curl.carier.add @http
         Curl.carier.remove @http
@@ -214,7 +218,10 @@ module RHACK
       @http.timeout = @timeout
 
       @http.on_complete {|c|
+        # > Carier.requests--
         @error = nil
+        # While not outdated, Curl::Response here may contain pointers on freed
+        # memory, thus throwing exception on #to_s and #inspect
         c.outdate!
         ProcCookies c.res if @cookieProc
         # We cannot just cancel on_complete in on_redirect block

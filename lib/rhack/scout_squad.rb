@@ -34,47 +34,44 @@ module RHACK
     end
     
     def update uri, forced=nil
-      each {|s| return L.warn "failed to update scout loaded? with url: #{s.http.url}" if s.loaded?} if !forced
+      each {|s| return L.warn "failed to update loaded scout with url: #{s.http.url}" if s.loaded?} if !forced
       each {|s| s.update uri}
     end
     
     def untargeted
       first.root == 'http://'
     end
+    
+    def wait_for_available
+      Curl.execute :unless_already
+      # Carier.requests освобождаются ещё до колбека,
+      # но колбеки выполняются последовательно,
+      # поэтому здесь мы можем усыплять тред,
+      # но только если это не тред самого Carier
+      if Curl.carier_thread == Thread.current
+        Curl.wait # runs Multi#perform
+      else
+        sleep 1
+      end
+    end
       
     def rand
       raise PickError if !b
-      # to_a because reject returns object of this class
-      if scout = to_a.rand {|_|!_.loaded?}; scout
-      else # Curl should run here, otherwise `next'/`rand'-recursion will cause stack overflow
-        unless Curl.status
-          L.log "Curl must run in order to use ScoutSquad#rand; setting Carier Thread"
-          Curl.execute
-          #raise "Curl must run in order to use ScoutSquad#rand"
-        end
-        #Curl.wait
-        loop {
-          sleep 1
-          break if Curl.carier.reqs.size < size
-        }
+      # to_a because Array#reject returns object of this class
+      if scout = to_a.rand_by_available?
+        scout
+      else
+        wait_for_available
         self.rand 
       end 
     end
       
     def next
       raise PickError if !b
-      if scout = find {|_|!_.loaded?}; scout
-      else # Curl should run here, otherwise `next'/`rand'-recursion will cause stack overflow
-        unless Curl.status
-          L.log "Curl must run in order to use ScoutSquad#next; setting Carier Thread"
-          Curl.execute :unless_allready
-          #raise "Curl must run in order to use ScoutSquad#next"
-        end
-        #Curl.wait
-        loop {
-          sleep 1
-          break if Curl.carier.reqs.size < size
-        }
+      if scout = to_a.find_available?
+        scout
+      else
+        wait_for_available
         self.next
       end 
     end

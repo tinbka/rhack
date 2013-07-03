@@ -71,14 +71,13 @@ rb_hash_clear_i(VALUE key, VALUE value, VALUE dummy) {
 }
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
-
-  if (rbcm && !rbcm->requests == Qnil && rb_type(rbcm->requests) == T_HASH && RHASH_LEN(rbcm->requests) > 0) {
-
+  //if (rbcm && !rbcm->requests == Qnil && rb_type(rbcm->requests) == T_HASH && RHASH_LEN(rbcm->requests) > 0) {
+  if (rbcm && rb_type(rbcm->requests) == T_HASH && RHASH_LEN(rbcm->requests) > 0) {
     rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
-
     rb_hash_foreach(rbcm->requests, rb_hash_clear_i, 0); //rb_hash_clear(rbcm->requests);
     rbcm->requests = Qnil;
   }
+  
   curl_multi_cleanup(rbcm->handle);
   free(rbcm);
 }
@@ -179,10 +178,10 @@ static VALUE ruby_curl_multi_idle(VALUE self) {
   
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
   
-  if ( FIX2INT( rb_funcall(rbcm->requests, rb_intern("length"), 0) ) == 0 ) {
-    return Qtrue;
-  } else {
+  if (RHASH_LEN(rbcm->requests))
     return Qfalse;
+  } else {
+    return Qtrue;
   }
 }
 
@@ -627,6 +626,7 @@ static void rb_curl_multi_idle_perform(VALUE self, ruby_curl_multi *rbcm) {
   create_crt_fd(&fdexcep, &crt_fdexcep);
 #endif
   
+  // sleep while no requests
   do {
 #ifdef HAVE_RB_THREAD_BLOCKING_REGION
     fdset_args.maxfd = 0;
@@ -641,7 +641,7 @@ static void rb_curl_multi_idle_perform(VALUE self, ruby_curl_multi *rbcm) {
     if (rc == -1)
       rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
     
-  } while (!(RHASH_TBL(rbcm->requests)->num_entries));
+  } while (!RHASH_LEN(rbcm->requests));
   
 #ifdef _WIN32
   cleanup_crt_fd(&fdread, &crt_fdread);

@@ -27,10 +27,11 @@ module RHACK
     def initialize *args
       args << 10 unless args[-1].is Fixnum
       args.insert -2, {} unless args[-2].is Hash
-      if scouts = args[-2][:scouts]
+      opts = args[-2]
+      if scouts = (opts[:scouts] || opts[:threads])
         args[-1] = scouts
       end
-      @opts = {:eval => Johnson::Enabled, :redir => true, :cp => true, :result => Page}.merge!(args[-2])
+      @opts = {:eval => Johnson::Enabled, :redir => true, :cp => true, :result => Page}.merge!(opts)
       args[-2] = @opts
       if args[0].is String
         url = args[0]
@@ -41,7 +42,6 @@ module RHACK
         @static = false
       end
       @ss  = ScoutSquad *args
-      Curl.run :unless_allready
     end
     
     def update_loc url
@@ -56,6 +56,10 @@ module RHACK
       update_loc to
     end
     alias :target= :retarget
+    
+    def anchor
+      retarget @loc.href
+    end
     
     def next() @ss.next end
     def rand() @ss.rand end
@@ -205,17 +209,17 @@ module RHACK
           if @static
             if @static.is Hash
               if loc.host != @loc.host and !@static.host
-                raise TargetError, "unable to get #{url} by static frame [#{@static.protocol}://]#{@loc.host}, you should first update it with new target"
+                raise TargetError, "unable to get #{url} by a static frame [#{@static.protocol}://]#{@loc.host}, you should first update it with a new target"
               end
             else
-              raise TargetError, "unable to get #{url} by static frame #{@loc.root}, you should first update it with new target"
+              raise TargetError, "unable to get #{url} by a static frame #{@loc.root}, you should first update it with a new target"
             end
           end
           @loc.root, @loc.host, @loc.protocol = loc.root, loc.host, loc.protocol
           url
         elsif !loc.root
           if !@static
-            raise TargetError, "undefined root for query #{url}, use :static option as Hash to set default protocol and host, or as True to allow using previously used root"
+            raise TargetError, "undefined root for query #{url}, use :static option as Hash to set a default protocol and host, or as True to allow using previously used root"
           elsif @static.is Hash
             # targeting relatively to default values (from @static hash)
             @loc.protocol = @static.protocol
@@ -223,7 +227,7 @@ module RHACK
             @loc.root = @loc.protocol+'://'+@loc.host
           end
           if !@loc.host
-            raise TargetError, "undefined host for query #{url}, use :host parameter of :static option to set default host"
+            raise TargetError, "undefined host for query #{url}, use :host parameter of :static option to set a default host"
           end
           File.join @loc.root, url
         else url
@@ -238,6 +242,15 @@ module RHACK
       urls.map! {|u| validate u}
     end
     
+    # Feature of :proc_result in that, if you running synchronously,
+    # result of #run will be, for conviniency, `page.res` instead of `page`
+    #
+    # If you only need to transfer &block through a stack of frame callbacks
+    # just add &block to the needed #run call
+    #
+    # If you want a method to be processable as in async-mode with &block passed
+    # as in sync-mode with no &block passed
+    # pass :save_result => !block to the topmost #run call
     def run_callbacks!(page, opts, &callback)
       # if no callback must have run then page.res is equal to the page
       # so we can get the page as result of a sync as well as an async request
@@ -280,12 +293,16 @@ module RHACK
         end
         if opts[:raw]
           page.res = yield curl
-      #   here +curl.res.body+ become empty
+      #   here +curl.res.body+ becomes empty
         elsif page.process(curl, opts)
           @@cache[page.href] = page if order[0] == :loadGet and @use_cache
           run_callbacks! page, opts, &callback
         end
       }
+      # > Carier.requests++
+      unless opts[:wait] and opts[:thread_safe] or opts[:exec] == false
+        Curl.execute :unless_already
+      end
       if opts[:wait]
         opts[:thread_safe] ? Curl.carier.perform : Curl.wait
         (opts[:save_result] or :proc_result.in opts) ? page.res : page
@@ -302,10 +319,15 @@ module RHACK
         end
         pages = orders.zip(with_opts[:ranges]).send(iterator) {|order, range| 
           (with_opts[:headers] ||= {}).Range = "bytes=#{range.begin}-#{range.end}"
-          exec_one order, with_opts, &callback
+          exec_one order, with_opts.merge(:exec => false), &callback
         }
       else
+        # если ss.next будет не хватать скаутов, то он сам запустит курл
+        # правда, это с :thread_safe никак не вяжется
         pages = orders.send(iterator) {|order| exec_one order, with_opts, &callback }
+      end
+      unless w and with_opts[:thread_safe] or opts[:exec] == false
+        Curl.execute :unless_already
       end
       with_opts[:thread_safe] ? Curl.carier.perform : Curl.wait if w
       with_opts[:stream] || pages
