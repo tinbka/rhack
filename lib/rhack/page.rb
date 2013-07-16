@@ -1,10 +1,35 @@
 # encoding: utf-8
-module RHACK
+class Object
+  unless defined? one_argument_is_a?
+    alias :one_argument_is_a? :is_a? 
+    def is_a?(class1, *other_classes)
+      one_argument_is_a? class1 or other_classes.any? {|cl| one_argument_is_a? cl}
+    end
+  end
+end
 
-    # Frame( ScoutSquad( Curl::Multi <- Scout( Curl API ), Scout, ... ) ) => 
-    # Curl -> Johnson::Runtime -> XML::Document => Page( XML::Document ), Page, ... 
+module RHACK
+        
+  class JsonString < String
+    __init__
+    attr_reader :source
     
-    class Page
+    def initialize(source)
+      @source = source
+      super source.to_json
+    end
+    
+    def inspect
+      "#<RHACK::JsonString(#{@source.inspect})>"
+    end
+  end
+      
+  class ScrapeError < ArgumentError; end
+  class NodeNotFound < ScrapeError; end
+
+  # Frame( ScoutSquad( Curl::Multi <- Scout( Curl API ), Scout, ... ) ) => 
+  # Curl -> Johnson::Runtime -> XML::Document => Page( XML::Document ), Page, ... 
+  class Page
     # for debug, just enable L#debug, don't write tons of chaotic log-lines 
     __init__
     attr_writer :title
@@ -43,6 +68,9 @@ module RHACK
     def html!(encoding='UTF-8')
       @html.force_encoding(encoding)
     end
+    
+    def url() @loc.href end
+    alias :href :url
     
     # We can then alternate #process in Page subclasses
     # Frame doesn't mind about value returned by #process
@@ -150,54 +178,33 @@ module RHACK
         @loc.href
       end
     end
-      
-    def find(xp) (@doc || to_doc).find xp end
     
-    def at(xp) (@doc || to_doc).at xp end
     
-    def url() @loc.href end
-    alias :href :url
+    # HELPERS #
     
-    def get_srcs(links='img')
-      begin
-        links = find(links).map {|e| e.src} if links.is String
-      rescue XML::Error
-        links = [links]
-      end
-      links.map {|link| expand_link link}.uniq
+    # hook to create even-looked lines defining a hash in my Verdana 10px, e.g.
+    # dict key1: value1, ...
+    #       key2: value2, ...
+    def dict(hash)
+      hash.is_a?(Hash) ? hash : Hash[hash]
     end
     
-    def get_src(link='img')
-      begin
-        link = at(link) && at(link).src if link.is String
-      rescue XML::Error; nil
-      end
-      expand_link link if link
+    # maps {'firstname lastname' => tuple} into {:firstname => tuple[0], :lastname => tuple[1]}
+    def flatten_dict(hash)
+      result = {}
+      hash.each {|k, v|
+        if k.is String and k[' ']
+          k.split(' ').each_with_index {|k_unit, k_idx|
+            result[k_unit.to_sym] = v[k_idx]
+          }
+        else
+          result[k.to_sym] = v
+        end
+      }
+      result
     end
     
-    def get_links(links='a')
-      begin
-        links = find(links).map {|e| e.href}.b || find(links+'//a').map {|e| e.href} if links.is String
-      rescue XML::Error
-        links = [links]
-      end
-      links.map {|link| expand_link link}.uniq
-    end
-    
-    def get_link(link='a')
-      begin
-        link = at(link) && (at(link).href || at(link+'//a').href) if link.is String
-      rescue XML::Error; nil
-      end
-      expand_link link if link
-    end
-    alias :get_hrefs :get_links
-    alias :links :get_links
-    alias :get_href :get_link
-    alias :link :get_link
-    alias :srcs :get_srcs
-    alias :src :get_src
-    
+    # makes a relative path being on this page into an absolute path
     def expand_link(link)
       case link
         when /^\w+:\/\// then link
@@ -206,6 +213,131 @@ module RHACK
         else File.join((@loc.path.b ? File.dirname(@loc.path) : @loc.root), link)
       end
     end
+    
+    
+    # FINDERS #
+      
+  private
+      
+    def node_is_missing!(selector, options)
+      missing = options[:missing]
+      if missing.is Proc
+        missing.call(selector)
+      elsif missing
+        if missing.is String
+          message %= {selector: selector}
+        end
+        raise NodeNotFound, missing
+      end
+    end
+      
+    def preprocess_search_result(preresult, preprocess)
+      if preprocess.is_a? Proc
+        preprocess.call(preresult)
+      elsif preprocess.is_a? Symbol
+        __send__(preprocess, preresult)
+      else
+        preresult
+      end
+    end
+      
+    def preprocess_search_results(preresult, preprocess)
+      if preprocess.is_a? Proc
+        preresult.map(&preprocess)
+      elsif preprocess.is_a? Symbol
+        preresult.map {|node| __send__(preprocess, node)}
+      else
+        preresult
+      end
+    end
+    
+    def __at(xp) (@doc || to_doc).at xp end
+    
+    def __find(xp) (@doc || to_doc).find xp end
+    
+  public
+    
+    def at(selector_or_node, options={})
+      if selector_or_node and preresult = selector_or_node.is_a?(XML::Node) ? 
+          selector_or_node : __at(selector_or_node)
+          
+        preresult = preprocess_search_result(preresult, options[:preprocess])
+        block_given? ? yield(preresult) : preresult
+      else
+        node_is_missing!(selector_or_node, options)
+        preresult
+      end
+    end
+    alias :first :at
+    
+    def find(selector_or_nodes, options={}, &foreach)
+      preresult = selector_or_nodes.is_a?(XML::XPath::Object, Array) ?
+        selector_or_nodes : __find(selector_or_nodes)
+        
+      if preresult.size > 0
+        preresult = preprocess_search_results(preresult, options[:preprocess])
+        foreach ? preresult.each(&foreach) : preresult
+      else
+        node_is_missing!(selector_or_nodes, options)
+        preresult
+      end
+    end
+    alias :all :find
+    
+    
+    # FINDERS PREPROCESSORS #
+    
+    def text(selector_or_node, options={})
+      if node = at(selector_or_node, options)
+        txt = node.text.strip
+        block_given? ? yield(txt) : txt
+      end
+    end
+    
+    def texts(hash, options={})
+      hash.map_values {|selector_or_node|
+        text(selector_or_node, options)
+      }
+    end
+    
+    def get_src(selector_or_node='img', options={}, &onfound)
+      at(selector_or_node, options.merge(:preprocess => lambda {|node|
+        if src = node.src
+          expand_link src
+        end
+      })) {|src| onfound && src && onfound.call(src)}
+    end
+    alias :src :get_src
+    
+    def get_link(selector_or_node='a', options={}, &onfound)
+      at(selector_or_node, options.merge(:preprocess => lambda {|node|
+        unless href = node.href
+          if node = node.find('a')
+            href = node.href
+          end
+        end
+        if href
+          expand_link href
+        end
+      })) {|href| onfound && href && onfound.call(href)}
+    end
+    alias :link :get_link
+    alias :get_href :get_link
+    
+    def map(selector_or_nodes, options={}, &mapper)
+      mapping = find(selector_or_nodes, options.merge(:preprocess => mapper))
+      unless options[:compact] == false
+        mapping = mapping.to_a.compact
+      end
+      mapping
+    end
+    
+    def map_json(selector_or_nodes, options={}, &mapper)
+      JsonString map(selector_or_nodes, options, &mapper)
+    end
+    
+    
+    # FORMS #
     
     def form(form='form', hash={}, opts={})
       form = "[action=#{@loc.path.inspect}]" if form == :self
@@ -236,6 +368,47 @@ module RHACK
       frame.retarget curr_target, :forced if need_retargeting
       page
     end
+    
+    
+    # OLD #
+    
+    # TODO: make into same form as #get_src and #map
+    def get_srcs(links='img')
+      begin
+        links = find(links).map {|e| e.src} if links.is String
+      rescue XML::Error
+        links = [links]
+      end
+      links.map {|link| expand_link link}.uniq
+    end
+    alias :srcs :get_srcs
+    
+    #def get_src(link='img')
+    #  begin
+    #    link = at(link) && at(link).src if link.is String
+    #  rescue XML::Error; nil
+    #  end
+    #  expand_link link if link
+    #end
+    
+    def get_links(links='a')
+      begin
+        links = find(links).map {|e| e.href}.b || find(links+'//a').map {|e| e.href} if links.is String
+      rescue XML::Error
+        links = [links]
+      end
+      links.map {|link| expand_link link}.uniq
+    end
+    alias :get_hrefs :get_links
+    alias :links :get_links
+    
+    #def get_link(link='a')
+    #  begin
+    #    link = at(link) && (at(link).href || at(link+'//a').href) if link.is String
+    #  rescue XML::Error; nil
+    #  end
+    #  expand_link link if link
+    #end
     
     def load_scripts(frame)
       frame && frame.get_cached(*get_srcs("script[src]")).each {|js| eval_string js}
