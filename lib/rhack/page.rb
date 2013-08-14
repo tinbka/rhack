@@ -305,7 +305,7 @@ module RHACK
         if src = node.src
           expand_link src
         end
-      })) {|src| onfound && src && onfound.call(src)}
+      })) {|href| onfound && src ? onfound.call(src) : src}
     end
     alias :src :get_src
     
@@ -319,7 +319,7 @@ module RHACK
         if href
           expand_link href
         end
-      })) {|href| onfound && href && onfound.call(href)}
+      })) {|href| onfound && href ? onfound.call(href) : href}
     end
     alias :link :get_link
     alias :get_href :get_link
