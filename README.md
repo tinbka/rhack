@@ -31,6 +31,11 @@ It's still randomly documented since it's just my working tool.
 
 ### CHANGES
 
+##### Version 1.1.7
+
+* ::Page
+  * Fixed #expand_link for partial links
+
 ##### Version 1.1.6
 
 * ::Frame

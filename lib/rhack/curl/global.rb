@@ -44,6 +44,7 @@ module Curl
     end
     alias :run :execute
     
+    # TODO: вместо статуса sleep/run использовать глобальную класс-переменную
     def wait
       if @@carier_thread and @@carier_thread.status
         unless within = Thread.current == @@carier_thread

@@ -208,9 +208,11 @@ module RHACK
     def expand_link(link)
       case link
         when /^\w+:\/\// then link
-        when /^\/\// then @loc.protocol+link
-        when /^\// then @loc.root+link
-        else File.join((@loc.path.b ? File.dirname(@loc.path) : @loc.root), link)
+        when /^\/\// then @loc.protocol + ':' + link
+        when /^\// then @loc.root + link
+        when /^\?/ then File.join(@loc.root, @loc.path) + link
+        when /^#/ then File.join(@loc.root, @loc.fullpath) + link
+        else File.join @loc.root, File.dirname(@loc.path), link
       end
     end
     
