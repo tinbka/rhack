@@ -51,6 +51,12 @@ module RHACK
       @retry = {@uri.host => @retry} if @retry.is Array
     end
     
+    def setup_curl
+      @http = Curl::Easy(@webproxy ? @proxy : @root)
+      @http.base = self       
+      @http.cacert = @@cacert
+    end
+    
     def update(uri)
       if !uri[/^\w+:\/\//]
         uri = '/' + uri if uri[0,1] != '/'
@@ -65,9 +71,7 @@ module RHACK
       if @http
         @http.url = @webproxy ? @proxy : @root
       else
-        @http = Curl::Easy(@webproxy ? @proxy : @root)
-        @http.base = self       
-        @http.cacert = @@cacert
+        setup_curl
       end
       if @proxy
         @http.proxy_url = @proxy*':' if !@webproxy
@@ -198,6 +202,13 @@ module RHACK
       }
     end
     
+    def retry!(path=@__path, headers=@__headers, not_redir=@__not_redir, relvl=@__relvl, callback=@__callback)
+      # all external params including post_body are still set
+      setup_curl # @http reload here
+      # and now we can set @http.on_complete back again
+      load(path, headers, not_redir, relvl, &callback)
+    end
+    
     def loaded?
       Curl.carier.reqs.include? @http
     end
@@ -214,15 +225,6 @@ module RHACK
     rescue RuntimeError => e
       e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
       raise e
-    end
-    
-    def retry!(path=@__path, headers=@__headers, not_redir=@__not_redir, relvl=@__relvl, callback=@__callback)
-      # all external params including post_body are still set
-      @http = nil
-      # @http reload here
-      update path
-      # and now we can set @http.on_complete back again
-      load(path, headers, not_redir, relvl, &callback)
     end
     
     def load(path=@path, headers={}, not_redir=1, relvl=10, &callback)
