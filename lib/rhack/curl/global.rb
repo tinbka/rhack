@@ -6,6 +6,7 @@ module Curl
       #if unless_allready and status
       #  return L.log "Carier allready executing"
       #end
+      L.debug {caller[1..10]}
       if @@carier_thread and s = @@carier_thread.status
         L.log "Carier Thread allready started and has status #{s}"
       else
@@ -129,7 +130,7 @@ module Curl
     
     def reset_carier!
       @@carier.clear!
-      @@carier = Multi.new
+      $Carier = @@carier = Multi.new
       carier.pipeline = true
       #GC.start
     end
@@ -147,6 +148,7 @@ module Curl
     alias :reload! :reset!
     
     def status(raise_error=true)
+      L.debug {caller[1..10]}
       if @@carier_thread and (s = @@carier_thread.status)
         L.log "Carier Thread responding with status #{s}"
         s

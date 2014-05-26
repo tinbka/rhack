@@ -43,7 +43,9 @@ module RHACK
     end
     
     def wait_for_available
+      L.debug {"Curl.carier_thread = #{Curl.carier_thread}; Thread.current = #{Thread.current}"}
       Curl.execute :unless_already
+      L.debug {"Curl.carier_thread = #{Curl.carier_thread}; Thread.current = #{Thread.current}"}
       # Carier.requests освобождаются ещё до колбека,
       # но колбеки выполняются последовательно,
       # поэтому здесь мы можем усыплять тред,
@@ -59,6 +61,7 @@ module RHACK
       raise PickError if !b
       # to_a because Array#reject returns object of this class
       if scout = to_a.rand_by_available?
+        L.debug {"found available scout##{scout.object_id}"}
         scout
       else
         wait_for_available
@@ -69,6 +72,7 @@ module RHACK
     def next
       raise PickError if !b
       if scout = to_a.find_available?
+        L.debug {"found available scout##{scout.object_id}"}
         scout
       else
         wait_for_available
