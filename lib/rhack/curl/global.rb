@@ -107,6 +107,7 @@ module Curl
       L.debug caller
       if @@carier_thread
         L.log "Recalling Carier thread"
+        L.debug {caller[1..10]}
         @@carier_thread.kill
         sleep 1
       else
@@ -118,6 +119,7 @@ module Curl
     def recall!
       if @@carier_thread
         L.warn "Recalling thread and resetting Carier!!!"
+        L.debug {caller[1..10]}
         @@carier_thread.kill
         @@carier_thread = nil
         reset_carier!
