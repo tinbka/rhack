@@ -186,12 +186,16 @@ module RHACK
         cks.map2 {|k, v| Cookie(k, v)}   
     end
     
-    def retry?(err)
-      # exc = ['0chan.ru', '2-ch.ru', 'www.nomer.org', 'nomer.org'].select_in('http://www.nomer.org') = ['www.nomer.org', 'nomer.org']
-      exc = (@@retry.keys + @retry.keys).select_in @root
-      return false if !exc.b
-      # ['www.nomer.org', 'nomer.org'].every {|www| 'TimeoutError'.in({'nomer.org' => 'TimeoutError'}[www])} ?
-      exc.no? {|e| err[0].self_name.in((@@retry[e] || []) + @retry[e])}
+    def retry?(eclass)
+      # sites = ['0chan.ru', '2-ch.ru', 'www.nomer.org', 'nomer.org'].select_in('http://www.nomer.org') = ['www.nomer.org', 'nomer.org']
+      sites = (@@retry.keys + @retry.keys).select_in @root
+      return false if sites.empty?
+      errname = eclass.self_name
+      # retry = ['www.nomer.org', 'nomer.org'].any? {|www| {'nomer.org' => ['TimeoutError']}[www].include? 'TimeoutError'}
+      sites.any? {|site|
+        (@@retry[site] || []).include? errname or 
+        (@retry[site] || []).include? errname
+      }
     end
     
     def loaded?
@@ -234,21 +238,21 @@ module RHACK
       }
       @http.on_failure {|c, e|
         @error = e
-        if e[0] == Curl::Err::CurlOK
+        eclass = e[0]
+        if eclass == Curl::Err::CurlOK
           # в сорцах on_failure не вызывается по коду 0, это какой-то глюк
           # в любом случае такой поворот не означает ошибки
           L.warn "Got Curl::Err::CurlOK, response was: #{c.res}"
           load!
         else
           c.outdate!
-          if retry? e
-            L.debug "#{e[0]} -> reloading scout"
+          if retry? eclass
+            L.debug "#{eclass} -> reloading scout"
             #load uri, headers, not_redir, relvl, &callback
-            load! # all params including post_body are still set
-            # DO they include `on_complete'?
+            load! # all params including post_body and on_complete are still set
           else
             @http.on_complete &Proc::NULL
-            L.debug "#{e[0]} -> not reloading scout"
+            L.debug "#{eclass} -> not reloading scout"
             raise *e if @raise_err
           end
         end
