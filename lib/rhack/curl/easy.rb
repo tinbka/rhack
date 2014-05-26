@@ -34,6 +34,7 @@ module Curl
     
     def retry!
       @base.retry!
+      # <self> is forgotten now
     end
     
     # curb changed getters interface, so i get some shortcuts from curb/lib/curl/easy.rb

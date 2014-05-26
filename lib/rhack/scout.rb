@@ -46,10 +46,9 @@ module RHACK
       @timeout    	= opts[:timeout] || @@timeout || 60
       @post_proc	= @get_proc = @head_proc = @put_proc = @delete_proc = Proc::NULL
       update uri
+      
       @retry = opts[:retry] || {}
       @retry = {@uri.host => @retry} if @retry.is Array
-      
-      @http.cacert = @@cacert
     end
     
     def update(uri)
@@ -68,6 +67,7 @@ module RHACK
       else
         @http = Curl::Easy(@webproxy ? @proxy : @root)
         @http.base = self       
+        @http.cacert = @@cacert
       end
       if @proxy
         @http.proxy_url = @proxy*':' if !@webproxy
@@ -216,7 +216,23 @@ module RHACK
       raise e
     end
     
+    def retry!(path=@__path, headers=@__headers, not_redir=@__not_redir, relvl=@__relvl, callback=@__callback)
+      # all external params including post_body are still set
+      @http = nil
+      # @http reload here
+      update path
+      # and now we can set @http.on_complete back again
+      load(path, headers, not_redir, relvl, &callback)
+    end
+    
     def load(path=@path, headers={}, not_redir=1, relvl=10, &callback)
+      # cache preprocessed data for one time for we can do #retry
+      @__path = path
+      @__headers = headers
+      @__not_redir = not_redir
+      @__relvl = relvl
+      @__callback = callback
+      
       @http.path = path = fix(path)
       @http.headers = mkHeader(path).merge!(headers)
       @http.timeout = @timeout
@@ -246,15 +262,12 @@ module RHACK
           # и @http.on_complete будет выполнен с верными данными
         else
           c.outdate!
-          # we must clean @on_complete, otherwise it would run 
-          # right after this function and with broken data
+          # we must clean @http.on_complete, otherwise
+          # it would run right after this function and with broken data
           @http.on_complete &Proc::NULL
           if retry? eclass
             L.debug "#{eclass} -> reloading scout"
-            # all external params including post_body are still set
-            # but @on_complete should must be set back again
-            # TODO: check if we could move @on_complete definition out of #load
-            load(path, headers, not_redir, relvl, &callback)
+            retry!
           else
             L.debug "#{eclass} -> not reloading scout"
             raise *e if @raise_err

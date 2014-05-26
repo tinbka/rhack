@@ -428,16 +428,16 @@ module RHACK
   #   @res and @res.code != 200
   # end
   def ReloadablePage(&reload_condition)
-    rp = Class.new Page
-    rp.send :define_method, :process do |curl, opts|
-      super(curl, opts || {})
-      if curl.instance_eval &reload_condition
-        curl.retry!
-        nil # in case of reload_condition.call super's callback will not proceed
-      else self
+    Class.new Page do
+      rp.send :define_method, :process do |curl, opts|
+        super(curl, opts || {})
+        if curl.instance_eval &reload_condition
+          curl.retry!
+          nil # in case of reload_condition.call super's callback will not proceed
+        else self
+        end
       end
     end
-    rp
   end
   
 end

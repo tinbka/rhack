@@ -297,6 +297,7 @@ module RHACK
         elsif page.process(curl, opts)
           @@cache[page.href] = page if order[0] == :loadGet and @use_cache
           run_callbacks! page, opts, &callback
+        # nothing to do here if process returns nil or false
         end
       }
       # > Carier.requests++
