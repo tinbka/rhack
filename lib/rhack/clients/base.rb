@@ -9,7 +9,14 @@ module RHACK
     attr_accessor :f
     alias_constant :URI
     
-    def initialize(service, frame=nil, *args)
+    def self.inherited(child)
+      child.class_eval {
+        include RHACK
+        __init__
+      }
+    end
+    
+    def initialize(service=:api, frame=nil, *args)
       @service = service
       # first argument should be a string so that frame won't be static
       @f = frame || Frame(URI(service) || URI(:login), *args)

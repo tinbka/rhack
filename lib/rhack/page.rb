@@ -59,9 +59,9 @@ module RHACK
         
     def inspect
       if !@hash.nil?
-        "<#FramePage (#{@hash ? @hash.inspect.size.bytes : 'failed to parse'}) #{@json ? 'json' : 'params hash'}>"
+        "<##{self.class.name} (#{@hash ? @hash.inspect.size.bytes : 'failed to parse'}) #{@json ? 'json' : 'params hash'}>"
       else
-        "<#FramePage #{@html.b ? "#{@failed ? @curl_res.header : '«'+title(false)+'»'} (#{@html.size.bytes}" : '(empty'})#{' js enabled' if @js and @doc and @hash.nil?}>"
+        "<##{self.class.name} #{@html.b ? "#{@failed ? @curl_res.header : '«'+title(false)+'»'} (#{@html.size.bytes}" : '(empty'})#{' js enabled' if @js and @doc and @hash.nil?}>"
       end
     end
     
@@ -197,6 +197,10 @@ module RHACK
           k.split(' ').each_with_index {|k_unit, k_idx|
             result[k_unit.to_sym] = v[k_idx]
           }
+        elsif k.is Array
+          k.each_with_index {|k_unit, k_idx|
+            result[k_unit.to_sym] = v[k_idx]
+          }
         else
           result[k.to_sym] = v
         end
@@ -307,7 +311,7 @@ module RHACK
         if src = node.src
           expand_link src
         end
-      })) {|href| onfound && src ? onfound.call(src) : src}
+      })) {|src| onfound && src ? onfound.call(src) : src}
     end
     alias :src :get_src
     

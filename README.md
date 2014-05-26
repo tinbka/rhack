@@ -31,10 +31,12 @@ It's still randomly documented since it's just my working tool.
 
 ### CHANGES
 
-##### Version 1.1.7
+##### Version 1.1.8
 
 * ::Page
   * Fixed #expand_link for partial links
+  
+* Make Curl.status catch any Exception subclass
 
 ##### Version 1.1.6
 

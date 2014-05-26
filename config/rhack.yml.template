@@ -1,4 +1,4 @@
-# By default, Scout uses randomly chosen ua (string from specified fiel)
+# By default, Scout uses randomly chosen ua (string from specified file)
 # for User-Agent header
 useragents: 
   desktop: config/uas.txt
@@ -23,18 +23,19 @@ scout:
 # Defaults to a file @ RAILS_PATH/config/RAILS_ENV.yml
 # Rhack is intended to use a database only for caching,
 # so I've came to a conclusion that Redis is the most suitable choice
-# redis.conf can be generated using `rake redis:config`
-# Delete this block to disable Redis connection at all 
-db:
-  redis:
-    configfilename: config/redis.conf
-    socket: tmp/sockets/redis.socket
-    port: 0
-    hostname: localhost
-    dbfilename: db/redis-dump.rdb
-    db: 0
-    save:
-    # "run BGSAVE every minute if anything have changed"
-    - 60 1
-    # You can change it to whatever you want and just use Redis#bgsave before exit Ruby
+# redis.conf can be generated using `rake redis:config` from this gem dir
+# Unomment this block to enable Redis connection
+#db:
+#  redis:
+#    configfilename: config/redis.conf
+#    socket: tmp/sockets/redis.socket
+#    pidfile: tmp/pids/redis.pid
+#    port: 0
+#    hostname: localhost
+#    dbfilename: db/redis-dump.rdb
+#    db: 0
+#    save:
+#    # "run BGSAVE every minute if anything have changed"
+#    - 60 1
+#    # You can change it to whatever you want and just use Redis#bgsave before exit Ruby
   

@@ -19,6 +19,7 @@ module RHACK
   
   db = config.db || {}
   @@redis = nil
+  
   if rcfg = db.redis
     begin
       require 'redis'
@@ -86,4 +87,6 @@ require "rhack/scout"
 require "rhack/scout_squad"
 require "rhack/frame"
 require "rhack/page"
-require "rhack/storage"
+if defined? Redis::Objects
+  require "rhack/storage"
+end

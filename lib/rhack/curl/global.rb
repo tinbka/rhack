@@ -40,6 +40,7 @@ module Curl
         # until main thread has sleep a bit, $CarierThread will have status "run", 
         # no matter whether it's idling or performing requests
         sleep 0.001
+        true
       end
     end
     alias :run :execute
@@ -153,7 +154,7 @@ module Curl
         begin
           # status = nil
           error = @@carier_thread.value
-        rescue => error
+        rescue Exception => error
           L.warn "Carier Thread has raised an exception"
           if raise_error
             recall!
@@ -172,5 +173,5 @@ module Curl
     end
     alias :st :status
     
-  end\
+  end
 end

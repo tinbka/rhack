@@ -60,7 +60,7 @@ module RHACK
     end
     
     # @ state_params : [string<user_id>, (strings*",")<scope>]
-    # persistent: state_params -> [string<token>, int<expires>]
+    # persistent: state_params -> [string token, int expires]
     def user_data(state_params, data=nil)
       key = "#{self.class.name.sub('RHACK::', '').underscore}:tokens"
       if data

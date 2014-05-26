@@ -1,3 +1,4 @@
+# encoding: utf-8
 #!/usr/bin/env ruby
 require "bundler/gem_tasks"
 
@@ -6,7 +7,7 @@ namespace :redis do
   
   task :config do
     mask = '{config/,}{redis,rhack}.yml'
-    src = FileList[mask].first
+    src = '/home/shinku/redis.yml'#FileList[mask].first
     unless src
       puts "Source yml file is not found, searched mask: #{mask}"
       exit

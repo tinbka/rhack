@@ -3,7 +3,7 @@ module RHACK
   
   class Storage
     __init__
-    include Redis::Objects
+    include ::Redis::Objects
     class TypeError < ::TypeError; end
     
     def initialize(type, namespace)
