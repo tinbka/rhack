@@ -243,15 +243,19 @@ module RHACK
           # в сорцах on_failure не вызывается по коду 0, это какой-то глюк
           # в любом случае такой поворот не означает ошибки
           L.warn "Got Curl::Err::CurlOK, response was: #{c.res}"
-          load!
+          # и @http.on_complete будет выполнен с верными данными
         else
           c.outdate!
+          # we must clean @on_complete, otherwise it would run 
+          # right after this function and with broken data
+          @http.on_complete &Proc::NULL
           if retry? eclass
             L.debug "#{eclass} -> reloading scout"
-            #load uri, headers, not_redir, relvl, &callback
-            load! # all params including post_body and on_complete are still set
+            # all external params including post_body are still set
+            # but @on_complete should must be set back again
+            # TODO: check if we could move @on_complete definition out of #load
+            load(path, headers, not_redir, relvl, &callback)
           else
-            @http.on_complete &Proc::NULL
             L.debug "#{eclass} -> not reloading scout"
             raise *e if @raise_err
           end

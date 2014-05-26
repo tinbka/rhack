@@ -83,7 +83,8 @@ module RHACK
         if opts[:json]
           @json = true
           @hash = begin; body.from_json
-          rescue StandardError
+          rescue StandardError => e
+            L.debug "Exception raised during `process' -> `from_json': #{e.inspect}"
             false 
           end
           if !@hash or @hash.is String
