@@ -429,7 +429,7 @@ module RHACK
   # end
   def ReloadablePage(&reload_condition)
     Class.new Page do
-      rp.send :define_method, :process do |curl, opts|
+      define_method :process do |curl, opts|
         super(curl, opts || {})
         if curl.instance_eval &reload_condition
           curl.retry!
