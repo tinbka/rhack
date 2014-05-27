@@ -123,7 +123,7 @@ module RHACK
       unless retry? c
         self
       else
-        curl.retry!
+        c.retry!
         nil # callback will not proceed
       end
     end
