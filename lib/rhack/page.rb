@@ -33,7 +33,7 @@ module RHACK
     # for debug, just enable L#debug, don't write tons of chaotic log-lines 
     __init__
     attr_writer :title
-    attr_reader :html, :loc, :hash, :doc, :js, :curl_res, :failed
+    attr_reader :html, :loc, :hash, :doc, :js, :curl, :curl_res, :failed
     # result of page processing been made in frame context
     attr_accessor :res
     # for johnson
@@ -73,7 +73,7 @@ module RHACK
     alias :href :url
     
     # override this in a subclass
-    def retry?(curl)
+    def retry?(*)
       false
     end
     
@@ -81,7 +81,14 @@ module RHACK
     # Frame doesn't mind about value returned by #process
     def process(c, opts={})
       @loc = c.last_effective_url.parse:uri
+      @curl = c
       @curl_res = c.res
+      
+      if retry?
+        c.retry!
+        return # callback will not proceed
+      end
+      
       L.debug "#{@loc.fullpath} -> #{@curl_res}"
       if @curl_res.code == 200
         body = @curl_res.body
@@ -120,12 +127,7 @@ module RHACK
         @failed = @curl_res.code
       end
       
-      unless retry? c
-        self
-      else
-        c.retry!
-        nil # callback will not proceed
-      end
+      self
     end
     
     def eval_js(frame=nil)

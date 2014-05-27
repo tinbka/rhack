@@ -255,7 +255,6 @@ module RHACK
         end
       }
       @http.on_failure {|c, e|
-        @error = e
         eclass = e[0]
         if eclass == Curl::Err::CurlOK
           # это может быть признак 5** кода.
@@ -264,6 +263,7 @@ module RHACK
           L.warn "Got Curl::Err::CurlOK, response was: #{c.res}"
           # и @http.on_complete будет выполнен с верными данными
         else
+          @error = e
           c.outdate!
           # we must clean @http.on_complete, otherwise
           # it would run right after this function and with broken data
