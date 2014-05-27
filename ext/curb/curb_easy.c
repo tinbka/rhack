@@ -3374,6 +3374,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "on_debug", ruby_curl_easy_on_debug_set, -1);
   rb_define_method(cCurlEasy, "on_success", ruby_curl_easy_on_success_set, -1);
   rb_define_method(cCurlEasy, "on_failure", ruby_curl_easy_on_failure_set, -1);
+  rb_define_method(cCurlEasy, "on_server_error", ruby_curl_easy_on_server_error_set, -1);
   rb_define_method(cCurlEasy, "on_missing", ruby_curl_easy_on_missing_set, -1);
   rb_define_method(cCurlEasy, "on_redirect", ruby_curl_easy_on_redirect_set, -1);
   rb_define_method(cCurlEasy, "on_complete", ruby_curl_easy_on_complete_set, -1);
