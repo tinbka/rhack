@@ -72,6 +72,11 @@ module RHACK
     def url() @loc.href end
     alias :href :url
     
+    # override this in a subclass
+    def retry?(curl)
+      false
+    end
+    
     # We can then alternate #process in Page subclasses
     # Frame doesn't mind about value returned by #process
     def process(c, opts={})
@@ -114,7 +119,13 @@ module RHACK
         @html = @curl_res.body
         @failed = @curl_res.code
       end
-      self
+      
+      unless retry? c
+        self
+      else
+        curl.retry!
+        nil # callback will not proceed
+      end
     end
     
     def eval_js(frame=nil)

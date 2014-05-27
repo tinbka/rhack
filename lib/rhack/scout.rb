@@ -258,6 +258,7 @@ module RHACK
         @error = e
         eclass = e[0]
         if eclass == Curl::Err::CurlOK
+          # это может быть признак 5** кода.
           # в сорцах on_failure не вызывается по коду 0, это какой-то глюк
           # в любом случае такой поворот не означает ошибки
           L.warn "Got Curl::Err::CurlOK, response was: #{c.res}"

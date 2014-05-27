@@ -1763,9 +1763,7 @@ static VALUE ruby_curl_easy_on_body_set(int argc, VALUE *argv, VALUE self) {
  * call-seq:
  *   easy.on_success { |easy| ... }                   => &lt;old handler&gt;
  *
- * Assign or remove the +on_success+ handler for this Curl::Easy instance.
- * To remove a previously-supplied handler, call this method with no
- * attached block.
+ * Assign the +on_success+ handler for this Curl::Easy instance.
  *
  * The +on_success+ handler is called when the request is finished with a
  * status of 20x
@@ -1778,24 +1776,34 @@ static VALUE ruby_curl_easy_on_success_set(int argc, VALUE *argv, VALUE self) {
  * call-seq:
  *   easy.on_failure {|easy,code| ... }               => &lt;old handler&gt;
  *
- * Assign or remove the +on_failure+ handler for this Curl::Easy instance.
- * To remove a previously-supplied handler, call this method with no
- * attached block.
+ * Assign the +on_failure+ handler for this Curl::Easy instance.
  *
  * The +on_failure+ handler is called when the request is finished with a
- * status of 50x
+ * Curl::Err
  */
 static VALUE ruby_curl_easy_on_failure_set(int argc, VALUE *argv, VALUE self) {
   CURB_HANDLER_PROC_HSETTER(ruby_curl_easy, failure_proc);
+}
+
+
+/*
+ * call-seq:
+ *   easy.on_server_error {|easy,code| ... }               => &lt;old handler&gt;
+ *
+ * Assign the +on_server_error+ handler for this Curl::Easy instance.
+ *
+ * The +on_server_error+ handler is called when the request is finished with a
+ * status of 50x
+ */
+static VALUE ruby_curl_easy_on_server_error_set(int argc, VALUE *argv, VALUE self) {
+  CURB_HANDLER_PROC_HSETTER(ruby_curl_easy, server_error_proc);
 }
 
 /*
  * call-seq:
  *  easy.on_missing {|easy,code| ... }                => &lt;old handler;&gt;
  *
- *  Assign or remove the on_missing handler for this Curl::Easy instance.
- *  To remove a previously-supplied handler, call this method with no attached
- *  block.
+ *  Assign the on_missing handler for this Curl::Easy instance.
  *
  *  The +on_missing+ handler is called when request is finished with a 
  *  status of 40x
@@ -1808,9 +1816,7 @@ static VALUE ruby_curl_easy_on_missing_set(int argc, VALUE *argv, VALUE self) {
  * call-seq:
  *  easy.on_redirect {|easy,code| ... }                => &lt;old handler;&gt;
  *
- *  Assign or remove the on_redirect handler for this Curl::Easy instance.
- *  To remove a previously-supplied handler, call this method with no attached
- *  block.
+ *  Assign the on_redirect handler for this Curl::Easy instance.
  *
  *  The +on_redirect+ handler is called when request is finished with a 
  *  status of 30x
@@ -1823,9 +1829,7 @@ static VALUE ruby_curl_easy_on_redirect_set(int argc, VALUE *argv, VALUE self) {
  * call-seq:
  *   easy.on_complete {|easy| ... }                   => &lt;old handler&gt;
  *
- * Assign or remove the +on_complete+ handler for this Curl::Easy instance.
- * To remove a previously-supplied handler, call this method with no
- * attached block.
+ * Assign the +on_complete+ handler for this Curl::Easy instance.
  *
  * The +on_complete+ handler is called when the request is finished.
  */
@@ -1837,9 +1841,7 @@ static VALUE ruby_curl_easy_on_complete_set(int argc, VALUE *argv, VALUE self) {
  * call-seq:
  *   easy.on_header { |header_data| ... }             => &lt;old handler&gt;
  *
- * Assign or remove the +on_header+ handler for this Curl::Easy instance.
- * To remove a previously-supplied handler, call this method with no
- * attached block.
+ * Assign the +on_header+ handler for this Curl::Easy instance.
  *
  * The +on_header+ handler is called for each chunk of response header passed
  * back by libcurl during +perform+. The semantics are the same as for the

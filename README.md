@@ -31,6 +31,23 @@ It's still randomly documented since it's just my working tool.
 
 ### CHANGES
 
+##### Version 1.2.5
+
+* ::Scout
+  * Added #retry! method and fixed raise/retry workflow
+
+* ::Page
+  * Added #retry? method to organize retry behaviour in subclasses
+  * RHACK#ReloadablePage is deprecated now
+  
+* Config
+  * rhack.yml generator: `rake rhack:config`
+  * Commented out "db" part and suppress require "rhack/storage" without Redis being loaded
+  
+* Curl
+  * 5xx HTTP response will call on_server_error callback instead of on_failure
+  * Fixed Segmentation Fault on `void curl_multi_free()'
+
 ##### Version 1.1.8
 
 * ::Page

@@ -72,7 +72,11 @@ rb_hash_clear_i(VALUE key, VALUE value, VALUE dummy) {
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
   //if (rbcm && !rbcm->requests == Qnil && rb_type(rbcm->requests) == T_HASH && RHASH_LEN(rbcm->requests) > 0) {
-  if (rbcm && rb_type(rbcm->requests) == T_HASH && RHASH_LEN(rbcm->requests) > 0) {
+  if (rbcm && 
+      rb_type(rbcm->requests) && 
+      rb_type(rbcm->requests) == T_HASH && 
+      RHASH_LEN(rbcm->requests) &&
+      RHASH_LEN(rbcm->requests) > 0) {
     rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
     rb_hash_foreach(rbcm->requests, rb_hash_clear_i, 0); //rb_hash_clear(rbcm->requests);
     rbcm->requests = Qnil;
@@ -397,12 +401,12 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     rb_funcall( rb_easy_get("missing_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
     rbce->callback_active = 0;
   }
-  else if (!rb_easy_nil("failure_proc") &&
+  else if (!rb_easy_nil("server_error_proc") &&
           (response_code >= 500 && response_code <= 999)) {
     //callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
     rbce->callback_active = 1;
     //val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
-    rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
+    rb_funcall( rb_easy_get("server_error_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
     rbce->callback_active = 0;
   }
 
