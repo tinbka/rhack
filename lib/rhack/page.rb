@@ -33,7 +33,7 @@ module RHACK
     # for debug, just enable L#debug, don't write tons of chaotic log-lines 
     __init__
     attr_writer :title
-    attr_reader :html, :xml, :loc, :data, :doc, :js, :curl, :curl_res, :failed
+    attr_reader :body, :loc, :data, :doc, :js, :curl, :curl_res, :failed
     alias :hash :data # DEPRECATED
     
     # result of page processing been made in frame context
@@ -41,31 +41,27 @@ module RHACK
     # for johnson
     @@ignore = /google|_gat|tracker|adver/i
       
+      # Frame calls it with no args
     def initialize(obj='', loc=Hash.new(''), js=Johnson::Runtime.browser||Johnson::Runtime.new)
       loc = loc.parse:uri if !loc.is Hash
       @js = js
       if obj.is Curl::Easy or obj.kinda Scout
         c = obj.kinda(Scout) ? obj.http : obj
-        @html = ''
         # just (c, loc) would pass to #process opts variable that returns '' on any key
         process(c, loc.b || {})
       else
-        @html = obj
+        @body = obj
         @loc = loc
       end
     end
     
     def empty?
-      body.empty?
-    end
-    
-    def body
-      @data.nil? ? @html || @xml : @data
+      !@data && !@body.b
     end
     
     def size
       if @data.nil?
-        (@html || @xml).size
+        (@body || '').size
       elsif @data == false
         0
       else
@@ -82,11 +78,13 @@ module RHACK
       end
     end
     
-    def html!(encoding='UTF-8')
-      @html.force_encoding(encoding)
+    def utf!
+      @body.utf!
     end
     
-    def url() @loc.href end
+    def url
+      @loc.href
+    end
     alias :href :url
     
     # override this in a subclass
@@ -101,14 +99,15 @@ module RHACK
         body = @curl_res.body
         if opts[:json]
           @json = true
-          @data = begin; body.from_json
-          rescue StandardError => e
-            L.debug "Exception raised during `process' -> `from_json': #{e.inspect}"
-            false 
-          end
+          @data = begin
+              body.from_json
+            rescue StandardError => e
+              L.debug "Exception raised during `from_json': #{e.inspect}"
+              false 
+            end
           if !@data or @data.is String
             L.debug "failed to get json from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
-            @html = body; to_html
+            @body = body; to_html
             @data = false
           end
           
@@ -118,11 +117,12 @@ module RHACK
           else
             @data = false
             L.debug "failed to get params hash from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
-            @html = body; to_html
+            @body = body
+            to_html
           end
           
         else
-          @html = body.xml_to_utf
+          @body = body.xml_to_utf
           to_html
           if opts[:eval]
             load_scripts opts[:load_scripts]
@@ -130,7 +130,7 @@ module RHACK
           end
         end
       elsif !(opts[:json] or opts[:hash])
-        @html = @curl_res.body
+        @body = @curl_res.body
         @failed = @curl_res.code
       end
       
@@ -187,15 +187,15 @@ module RHACK
     end
     
     def to_html
-      @doc = @html.to_html
+      @doc = @body.to_html
     end
     
     def to_xml
-      @doc = @html.to_xml
+      @doc = @body.to_xml
     end
     
     def title(full=true)
-      if @data.nil? and !@failed and @html.b
+      if @data.nil? and !@failed and @body.b
         if full
           to_html unless defined? @doc
           if @doc.title.b
@@ -305,7 +305,7 @@ module RHACK
   public
     
     def at(selector_or_node, options={})
-      if selector_or_node and preresult = selector_or_node.is_a?(XML::Node) ? 
+      if selector_or_node and preresult = selector_or_node.is_a?(LibXML::XML::Node) ? 
           selector_or_node : __at(selector_or_node)
           
         preresult = preprocess_search_result(preresult, options[:preprocess])
@@ -318,7 +318,7 @@ module RHACK
     alias :first :at
     
     def find(selector_or_nodes, options={}, &foreach)
-      preresult = selector_or_nodes.is_a?(XML::XPath::Object, Array) ?
+      preresult = selector_or_nodes.is_a?(LibXML::XML::XPath::Object, Array) ?
         selector_or_nodes : __find(selector_or_nodes)
         
       if preresult.size > 0
@@ -390,7 +390,7 @@ module RHACK
       form = "[action=#{@loc.path.inspect}]" if form == :self
       if form.is String
              form_node = at form
-             raise XML::Error, "Can't find form by xpath `#{form}` on page #{inspect}" if !form_node or form_node.name != 'form'
+             raise LibXML::XML::Error, "Can't find form by xpath `#{form}` on page #{inspect}" if !form_node or form_node.name != 'form'
       else form_node = form
       end
       hash = form_node.inputs_all.merge!(hash)
@@ -417,13 +417,13 @@ module RHACK
     end
     
     
-    # OLD #
+    ### OLD DEPRECATED ###
     
     # TODO: make into same form as #get_src and #map
     def get_srcs(links='img')
       begin
         links = find(links).map {|e| e.src} if links.is String
-      rescue XML::Error
+      rescue LibXML::XML::Error
         links = [links]
       end
       links.map {|link| expand_link link}.uniq
@@ -433,7 +433,7 @@ module RHACK
     #def get_src(link='img')
     #  begin
     #    link = at(link) && at(link).src if link.is String
-    #  rescue XML::Error; nil
+    #  rescue LibXML::XML::Error; nil
     #  end
     #  expand_link link if link
     #end
@@ -441,7 +441,7 @@ module RHACK
     def get_links(links='a')
       begin
         links = find(links).map {|e| e.href}.b || find(links+'//a').map {|e| e.href} if links.is String
-      rescue XML::Error
+      rescue LibXML::XML::Error
         links = [links]
       end
       links.map {|link| expand_link link}.uniq
@@ -463,6 +463,8 @@ module RHACK
     
   end
 
+  ### DEPRECATED ### Use native inheritance and override #retry instead
+  
   # using reprocessing of page in case of non-200 response:
   # page_class = ReloadablePage do
   #   @res and @res.code != 200

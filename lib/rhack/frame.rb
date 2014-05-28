@@ -91,8 +91,14 @@ module RHACK
       "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{sssize} #{sssize == 1 ? 'scout' : 'scouts'}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookieProc ? 'on' : 'off'}>"
     end
     
-    # opts are :eval, :json, :hash, :wait, :proc_result, :save_result, :load_scripts, 
-    # :zip, :thread_safe, :result, :stream, :raw, :xhr + any opts for Scouts in one hash
+    # All opts going in one hash.
+    # Opts for Frame:
+    #   :wait, :proc_result, :save_result, :zip, :thread_safe, :result, :stream, :raw, :xhr, :content_type
+    # Opts passed to Page:
+    #   :xml, :html, :json, :hash, :eval, :load_scripts
+    # Opts for Scout:
+    #   :headers, :redir, :relvl
+    # TODO: describe options
     def exec *args, &callback
       many, order, orders, with_opts = interpret_request *args
       L.log({:many => many, :order => order, :orders => orders, :with_opts => with_opts})
@@ -202,10 +208,21 @@ module RHACK
       opts[:wait] = opts[:sync] if :sync.in opts
       opts[:wait] = true if !:wait.in(opts) and 
                     :proc_result.in(opts) ? !opts[:proc_result] : opts[:save_result]
+                    
       opts[:eval] = false if opts[:json] or opts[:hash] or opts[:raw]
       opts[:load_scripts] = self if opts[:load_scripts]
       opts[:stream] = true if opts[:raw]
+      
       (opts[:headers] ||= {})['X-Requested-With'] = 'XMLHttpRequest' if opts[:xhr]
+      if opts[:content_type]
+        if mime_type = Mime::Type.lookup_by_extension(opts[:content_type])
+          (opts[:headers] ||= {})['Content-Type'] = mime_type
+        else
+          raise ArgumentError, "failed to detect Mime::Type by extension: #{opts[:content_type]}
+      (#{args.inspect[1..-2]})"
+        end
+      end
+      
       [many, order, orders, opts]
     end
     

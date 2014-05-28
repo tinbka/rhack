@@ -43,9 +43,9 @@ module RHACK
     end
     
     def wait_for_available
-      L.debug {"Curl.carier_thread = #{Curl.carier_thread}; Thread.current = #{Thread.current}"}
+      #L.debug {"Curl.carier_thread = #{Curl.carier_thread}; Thread.current = #{Thread.current}"}
       Curl.execute :unless_already
-      L.debug {"Curl.carier_thread = #{Curl.carier_thread}; Thread.current = #{Thread.current}"}
+      #L.debug {"Curl.carier_thread = #{Curl.carier_thread}; Thread.current = #{Thread.current}"}
       # Carier.requests освобождаются ещё до колбека,
       # но колбеки выполняются последовательно,
       # поэтому здесь мы можем усыплять тред,
