@@ -116,31 +116,42 @@ module RHACK
       L.log [body, mp, url, opts]
       zip = opts.delete :zip
       verb = opts.delete :verb
-      many = order = orders = post = false
-      # Default options set is for POST
-      if mp.is String or mp.kinda Array and !(url.is String or url.kinda Array)
-      # if second arg is String, then that's url
-        url, mp, post = mp.dup, false, true
-      #  L.debug "url #{url.inspect} has been passed as second argument instead of third"
-      # But if we have only one argument actually passed 
-      # except for options hash, then believe it's GET
-      elsif body.is String or body.kinda [String]
-        L.debug "first parameter (#{body.inspect}) was implicitly taken as url#{' '+body.class if body.kinda Array}, but last paramter is of type #{url.class}, too" if url
-        url = body.dup
-      elsif !body
-        url = nil
+      post = put = verb == :put
+      many = order = orders = false
+      
+      if put
+        # If request is PUT then first argument is always body
+        if mp.is String
+          # and second is URL if specified
+          url = mp.dup
+        else
+          url = nil
+        end
       else
-        url = url.dup if url
-        mp, post = !!mp, true
+        # Default options set is for POST
+        if mp.is String or mp.kinda Array and !(url.is String or url.kinda Array)
+        # if second arg is String then it's URL
+          url, mp, post = mp.dup, false, true
+        # L.debug "URL #{url.inspect} has been passed as second argument instead of third"
+        # But if we have only one argument actually passed 
+        # except for options hash then believe it's GET
+        elsif body.is String or body.kinda [String]
+          L.debug "first parameter (#{body.inspect}) was implicitly taken as url#{' '+body.class if body.kinda Array}, but last paramter is of type #{url.class}, too" if url
+          url = body.dup
+        elsif !body
+          url = nil
+        else
+          url = url.dup if url
+          mp, post = !!mp, true
+        end
       end
       
       if post
-        put = verb == :put
         validate_zip url, body if zip
         if zip or url.kinda Array or body.kinda Array
           many    = true
           unless put or body.kinda [Hash]
-            raise TypeError, "body of post request must be a hash array, params was
+            raise TypeError, "body of POST request must be a hash array, params was
        (#{args.inspect[1..-2]})"
           end
      
@@ -157,8 +168,12 @@ module RHACK
             orders.each {|o| o.unshift :loadPost and o.insert 2, mp}
           end
         else
-          unless put or body.is Hash
-            raise TypeError, "body of post request must be a hash, params was
+          unless put and body.is String
+            raise TypeError, "body of PUT request must be a string, params was
+       (#{args.inspect[1..-2]})"
+          end
+          unless !put and body.is Hash
+            raise TypeError, "body of POST request must be a hash, params was
        (#{args.inspect[1..-2]})"
           end
      
