@@ -33,7 +33,9 @@ module RHACK
     # for debug, just enable L#debug, don't write tons of chaotic log-lines 
     __init__
     attr_writer :title
-    attr_reader :html, :loc, :hash, :doc, :js, :curl, :curl_res, :failed
+    attr_reader :html, :loc, :data, :doc, :js, :curl, :curl_res, :failed
+    alias :hash :data # DEPRECATED
+    
     # result of page processing been made in frame context
     attr_accessor :res
     # for johnson
@@ -77,6 +79,49 @@ module RHACK
       false
     end
     
+    # override this in a subclass
+    def parse(opts={})
+      c = @curl
+      if @curl_res.code == 200
+        body = @curl_res.body
+        if opts[:json]
+          @json = true
+          @hash = begin; body.from_json
+          rescue StandardError => e
+            L.debug "Exception raised during `process' -> `from_json': #{e.inspect}"
+            false 
+          end
+          if !@hash or @hash.is String
+            L.debug "failed to get json from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
+            @html = body; to_html
+            @hash = false
+          end
+          
+        elsif opts[:hash]
+          if body.inline
+            @hash = body.to_params
+          else
+            @hash = false
+            L.debug "failed to get params hash from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
+            @html = body; to_html
+          end
+          
+        else
+          @html = body.xml_to_utf
+          to_html
+          if opts[:eval]
+            load_scripts opts[:load_scripts]
+            eval_js
+          end
+        end
+      elsif !(opts[:json] or opts[:hash])
+        @html = @curl_res.body
+        @failed = @curl_res.code
+      end
+      
+      self
+    end
+    
     # We can then alternate #process in Page subclasses
     # Frame doesn't mind about value returned by #process
     def process(c, opts={})
@@ -90,44 +135,7 @@ module RHACK
       end
       
       L.debug "#{@loc.fullpath} -> #{@curl_res}"
-      if @curl_res.code == 200
-        body = @curl_res.body
-        if opts[:json]
-          @json = true
-          @hash = begin; body.from_json
-          rescue StandardError => e
-            L.debug "Exception raised during `process' -> `from_json': #{e.inspect}"
-            false 
-          end
-          if !@hash or @hash.is String
-            L.debug "failed to get json from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
-            @html = body; to_doc
-            @hash = false
-          end
-          
-        elsif opts[:hash]
-          if body.inline
-            @hash = body.to_params
-          else
-            @hash = false
-            L.debug "failed to get params hash from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
-            @html = body; to_doc
-          end
-          
-        else
-          @html = body.xml_to_utf
-          to_doc
-          if opts[:eval]
-            load_scripts opts[:load_scripts]
-            eval_js
-          end
-        end
-      elsif !(opts[:json] or opts[:hash])
-        @html = @curl_res.body
-        @failed = @curl_res.code
-      end
-      
-      self
+      parse(opts)
     end
     
     def eval_js(frame=nil)
@@ -163,14 +171,14 @@ module RHACK
       end
     end
     
-    def to_doc
-      @doc = @html.to_doc :forceutf
+    def to_html
+      @doc = @html.to_html :forceutf
     end
     
     def title(full=true)
       if @hash.nil? and !@failed and @html.b
         if full
-          to_doc unless defined? @doc
+          to_html unless defined? @doc
           if @doc.title.b
             @title = @doc.title
           else
@@ -271,9 +279,9 @@ module RHACK
       end
     end
     
-    def __at(xp) (@doc || to_doc).at xp end
+    def __at(xp) (@doc || to_html).at xp end
     
-    def __find(xp) (@doc || to_doc).find xp end
+    def __find(xp) (@doc || to_html).find xp end
     
   public
     

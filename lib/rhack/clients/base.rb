@@ -6,6 +6,7 @@
 module RHACK
 
   class Client
+    attr_reader :service
     attr_accessor :f
     alias_constant :URI
     

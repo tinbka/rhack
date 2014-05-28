@@ -66,9 +66,11 @@ module Curl
         @req.range   = $1.to_i .. $2.to_i
       end
       if easy.base and @req.meth = easy.base.last_method and @req.meth.in [:post, :put]
-        @req.body	  = easy.post_body.dup
         if @req.meth == :post
-          @req.mp	  = easy.multipart_form_post?
+          @req.body	= easy.post_body.dup
+          @req.mp	    = easy.multipart_form_post?
+        else
+          @req.body	= easy.base.body.dup
         end
       end
     end
