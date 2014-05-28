@@ -224,7 +224,11 @@ module RHACK
       end
     rescue RuntimeError => e
       e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
-      raise e
+      L.warn "#{e.inspect}: #{e.message}"
+      sleep 1
+      load!
+      #e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
+      #raise e
     end
     
     def load(path=@path, headers={}, not_redir=1, relvl=10, &callback)
@@ -256,25 +260,17 @@ module RHACK
       }
       @http.on_failure {|c, e|
         eclass = e[0]
-        if eclass == Curl::Err::CurlOK
-          # это может быть признак 5** кода.
-          # в сорцах on_failure не вызывается по коду 0, это какой-то глюк
-          # в любом случае такой поворот не означает ошибки
-          L.warn "Got Curl::Err::CurlOK, response was: #{c.res}"
-          # и @http.on_complete будет выполнен с верными данными
+        @error = e
+        c.outdate!
+        # we must clean @http.on_complete, otherwise
+        # it would run right after this function and with broken data
+        @http.on_complete &Proc::NULL
+        if retry? eclass
+          L.debug "#{eclass} -> reloading scout"
+          retry!
         else
-          @error = e
-          c.outdate!
-          # we must clean @http.on_complete, otherwise
-          # it would run right after this function and with broken data
-          @http.on_complete &Proc::NULL
-          if retry? eclass
-            L.debug "#{eclass} -> reloading scout"
-            retry!
-          else
-            L.debug "#{eclass} -> not reloading scout"
-            raise *e if @raise_err
-          end
+          L.debug "#{eclass} -> not reloading scout"
+          raise *e if @raise_err
         end
       } if !@http.on_failure
       
