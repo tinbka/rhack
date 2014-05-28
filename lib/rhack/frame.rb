@@ -168,13 +168,16 @@ module RHACK
             orders.each {|o| o.unshift :loadPost and o.insert 2, mp}
           end
         else
-          unless put and body.is String
-            raise TypeError, "body of PUT request must be a string, params was
-       (#{args.inspect[1..-2]})"
-          end
-          unless !put and body.is Hash
-            raise TypeError, "body of POST request must be a hash, params was
-       (#{args.inspect[1..-2]})"
+          if put
+            unless body.is String
+              raise TypeError, "body of PUT request must be a string, params was
+         (#{args.inspect[1..-2]})"
+            end
+          else
+            unless body.is Hash
+              raise TypeError, "body of POST request must be a hash, params was
+         (#{args.inspect[1..-2]})"
+            end
           end
      
           url = validate url

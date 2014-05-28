@@ -33,7 +33,7 @@ module RHACK
     # for debug, just enable L#debug, don't write tons of chaotic log-lines 
     __init__
     attr_writer :title
-    attr_reader :html, :loc, :data, :doc, :js, :curl, :curl_res, :failed
+    attr_reader :html, :xml, :loc, :data, :doc, :js, :curl, :curl_res, :failed
     alias :hash :data # DEPRECATED
     
     # result of page processing been made in frame context
@@ -56,14 +56,29 @@ module RHACK
     end
     
     def empty?
-      !(@hash.nil? ? @html : @hash).b
+      body.empty?
+    end
+    
+    def body
+      @data.nil? ? @html || @xml : @data
+    end
+    
+    def size
+      if @data.nil?
+        (@html || @xml).size
+      elsif @data == false
+        0
+      else
+        @data.inspect.size
+      end
     end
         
     def inspect
-      if !@hash.nil?
-        "<##{self.class.name} (#{@hash ? @hash.inspect.size.bytes : 'failed to parse'}) #{@json ? 'json' : 'params hash'}>"
+      sz = size
+      if !@data.nil?
+        "<##{self.class.name} (#{@data == false ? 'failed to parse' : sz.bytes}) #{@json ? 'json' : 'url params'}>"
       else
-        "<##{self.class.name} #{@html.b ? "#{@failed ? @curl_res.header : '«'+title(false)+'»'} (#{@html.size.bytes}" : '(empty'})#{' js enabled' if @js and @doc and @hash.nil?}>"
+        "<##{self.class.name} #{sz == 0 ? '(empty)' : "#{@failed ? @curl_res.header : '«'+title(false)+'»'} (#{sz.bytes})"}#{' js enabled' if @js and @doc}>"
       end
     end
     
@@ -86,22 +101,22 @@ module RHACK
         body = @curl_res.body
         if opts[:json]
           @json = true
-          @hash = begin; body.from_json
+          @data = begin; body.from_json
           rescue StandardError => e
             L.debug "Exception raised during `process' -> `from_json': #{e.inspect}"
             false 
           end
-          if !@hash or @hash.is String
+          if !@data or @data.is String
             L.debug "failed to get json from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
             @html = body; to_html
-            @hash = false
+            @data = false
           end
           
         elsif opts[:hash]
           if body.inline
-            @hash = body.to_params
+            @data = body.to_params
           else
-            @hash = false
+            @data = false
             L.debug "failed to get params hash from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
             @html = body; to_html
           end
@@ -172,11 +187,15 @@ module RHACK
     end
     
     def to_html
-      @doc = @html.to_html :forceutf
+      @doc = @html.to_html
+    end
+    
+    def to_xml
+      @doc = @html.to_xml
     end
     
     def title(full=true)
-      if @hash.nil? and !@failed and @html.b
+      if @data.nil? and !@failed and @html.b
         if full
           to_html unless defined? @doc
           if @doc.title.b
