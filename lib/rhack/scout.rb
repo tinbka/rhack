@@ -52,6 +52,9 @@ module RHACK
     end
     
     def setup_curl
+      if loaded?
+        Curl.carier.remove @http
+      end
       @http = Curl::Easy(@webproxy ? @proxy : @root)
       @http.base = self       
       @http.cacert = @@cacert
@@ -225,6 +228,9 @@ module RHACK
     rescue RuntimeError => e
       e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
       L.warn "#{e.inspect}: #{e.message}"
+      if loaded?
+        Curl.carier.remove @http
+      end
       sleep 1
       load!
       #e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
