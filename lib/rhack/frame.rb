@@ -25,23 +25,24 @@ module RHACK
     @@cache = {}
     
     def initialize *args
-      args << 10 unless args[-1].is Fixnum
-      args.insert -2, {} unless args[-2].is Hash
-      opts = args[-2]
-      if scouts = (opts[:scouts] || opts[:threads])
-        args[-1] = scouts
-      end
+      #args << 10 unless args[-1].is Fixnum
+      #args.insert -2, {} unless args[-2].is Hash
+      #opts = args[-2]
+      #if scouts = (opts[:scouts] || opts[:threads])
+      #  args[-1] = scouts
+      #end
+      opts = args.find_by_class Hash
+      scouts_count = opts[:scouts] || opts[:threads] || 10
       @opts = {:eval => Johnson::Enabled, :redir => true, :cp => true, :result => Page}.merge!(opts)
-      args[-2] = @opts
       if args[0].is String
-        url = args[0]
+        url = args[0].dup
         'http://' >> url if url !~ /^\w+:\/\//
         update_loc url
       else
         @loc = {}
         @static = false
       end
-      @ss  = ScoutSquad *args
+      @ss  = ScoutSquad @loc.href, @opts, scouts_count
     end
     
     def update_loc url

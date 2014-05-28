@@ -15,11 +15,15 @@ module RHACK
       if args[0].is Scout
         s = args[0]
       else
-        if !args[0].is String
-          args.unshift ''
+        unless args[0].is String
           if (opts = args[-1]).is Hash and (opts[:cp] || opts[:ck]).is Hash
             L.warn "it's useless to setup cookies for untargeted squad!"
           end
+        end
+        if !args[0]
+          args[0] = ''
+        elsif !args[0].is String
+          args.unshift ''
         end
         if args[1] and args[1][0].is Array
           proxies = args[1]

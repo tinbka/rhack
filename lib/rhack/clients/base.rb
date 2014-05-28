@@ -8,20 +8,55 @@ module RHACK
   class Client
     attr_reader :service
     attr_accessor :f
+    class_attribute :frame_defaults
+    class_attribute :accounts
+    class_attribute :routes
     alias_constant :URI
     
-    def self.inherited(child)
-      child.class_eval {
-        include RHACK
-        __init__
-      }
+    @@frame_defaults = {}
+    @@accounts = {}
+    @@routes = {}
+    
+    class << self
+    
+      def inherited(child)
+        child.class_eval {
+          include RHACK
+          __init__
+        }
+      end
+      
+    private
+      
+      # Set routes map
+      def map(dict)
+        # URI is deprecated # backward compatibility
+        URI.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
+        @@routes.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
+      end
+      
+      # Set default Frame options
+      def frame(dict)
+        @@frame_defaults.merge! dict
+      end
+      
+      # Set usable accounts
+      # @ dict : {symbol => {symbol => string, ...}}
+      def accounts(dict)
+        @@accounts.merge! dict
+      end
+      
     end
     
-    def initialize(service=:api, frame=nil, *args)
+    def initialize(service=:api, opts={})
       @service = service
+      opts = args.first
       # first argument should be a string so that frame won't be static
-      @f = frame || Frame(URI(service) || URI(:login), *args)
+      @f = opts.is_a?(Frame) ? 
+        opts : 
+        Frame(URI(service) || URI(:login), @@frame_defaults.merge(opts))
     end
+    
     
     # Usable only for sync requests
     def login(*)
@@ -41,6 +76,8 @@ module RHACK
       Curl.reload
     end
     
+    
+    
     def scrape!(page)
       __send__(:"scrape_#{@service}", page)
       if url = next_url(page)
@@ -50,6 +87,17 @@ module RHACK
         
     def inspect
       "<##{self.class.self_name}:#{@service.to_s.camelize} service via #{@f.inspect}>"
+    end
+    
+    # shortcuts to class variables #
+    
+    def url(name)
+      @@routes[name]
+    end
+    alias :route :url
+    
+    def account(name)
+      @@accounts[name]
     end
     
   end
