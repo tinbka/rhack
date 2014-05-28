@@ -35,6 +35,7 @@ module RHACK
     attr_writer :title
     attr_reader :body, :loc, :data, :doc, :js, :curl, :curl_res, :failed
     alias :hash :data # DEPRECATED
+    alias :html :body # DEPRECATED
     
     # result of page processing been made in frame context
     attr_accessor :res
@@ -93,21 +94,32 @@ module RHACK
     end
     
     # override this in a subclass
+    # MUST return self if successful
+    # MAY return false otherwise
     def parse(opts={})
       c = @curl
       if @curl_res.code == 200
         body = @curl_res.body
-        if opts[:json]
+        if opts[:xml]
+          begin
+            @body = body.xml_to_utf
+            to_xml
+          rescue StandardError => e
+            L.warn "Exception raised during `to_xml': #{e.inspect}"
+            L.debug "Failed to parse page as HTML from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
+            @body = body
+          end
+        elsif opts[:json]
           @json = true
           @data = begin
               body.from_json
             rescue StandardError => e
-              L.debug "Exception raised during `from_json': #{e.inspect}"
+              L.warn "Exception raised during `from_json': #{e.inspect}"
               false 
             end
           if !@data or @data.is String
-            L.debug "failed to get json from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
-            @body = body; to_html
+            L.debug "Failed to get JSON from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
+            @body = body
             @data = false
           end
           
@@ -115,18 +127,23 @@ module RHACK
           if body.inline
             @data = body.to_params
           else
-            @data = false
-            L.debug "failed to get params hash from #{c.last_effective_url}, take a look at my @doc for info; my object_id is #{object_id}"
+            L.debug "Failed to get url params hash from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
             @body = body
-            to_html
+            @data = false
           end
           
-        else
-          @body = body.xml_to_utf
-          to_html
-          if opts[:eval]
-            load_scripts opts[:load_scripts]
-            eval_js
+        else # html
+          begin
+            @body = body.xml_to_utf
+            to_html
+            if opts[:eval]
+              load_scripts opts[:load_scripts]
+              eval_js
+            end
+          rescue StandardError => e
+            L.warn "Exception raised during `to_html': #{e.inspect}"
+            L.debug "Failed to parse page as HTML from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
+            @body = body
           end
         end
       elsif !(opts[:json] or opts[:hash])
