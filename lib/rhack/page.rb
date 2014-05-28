@@ -88,6 +88,12 @@ module RHACK
     end
     alias :href :url
     
+    
+    # override this in a subclass
+    def failed?(*)
+      @curl_res.code != 200
+    end
+    
     # override this in a subclass
     def retry?(*)
       false
@@ -97,62 +103,85 @@ module RHACK
     # MUST return self if successful
     # MAY return false otherwise
     def parse(opts={})
-      c = @curl
-      if @curl_res.code == 200
-        body = @curl_res.body
-        if opts[:xml]
-          begin
-            @body = body.xml_to_utf
-            to_xml
-          rescue StandardError => e
-            L.warn "Exception raised during `to_xml': #{e.inspect}"
-            L.debug "Failed to parse page as HTML from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
-            @body = body
-          end
-        elsif opts[:json]
-          @json = true
-          @data = begin
-              body.from_json
-            rescue StandardError => e
-              L.warn "Exception raised during `from_json': #{e.inspect}"
-              false 
-            end
-          if !@data or @data.is String
-            L.debug "Failed to get JSON from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
-            @body = body
-            @data = false
-          end
-          
-        elsif opts[:hash]
-          if body.inline
-            @data = body.to_params
-          else
-            L.debug "Failed to get url params hash from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
-            @body = body
-            @data = false
-          end
-          
-        else # html
-          begin
-            @body = body.xml_to_utf
-            to_html
-            if opts[:eval]
-              load_scripts opts[:load_scripts]
-              eval_js
-            end
-          rescue StandardError => e
-            L.warn "Exception raised during `to_html': #{e.inspect}"
-            L.debug "Failed to parse page as HTML from #{c.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
-            @body = body
-          end
+      if failed?
+        failed!
+        if opts[:json] or opts[:hash]
+          @data = false
         end
-      elsif !(opts[:json] or opts[:hash])
-        @body = @curl_res.body
-        @failed = @curl_res.code
+        return self
+      end
+      
+      if opts[:json]
+        parse_json opts
+      elsif opts[:hash]
+        parse_hash opts
+      elsif opts[:xml]
+        parse_xml opts
+      else
+        parse_html opts
       end
       
       self
     end
+    
+  private
+    
+    def failed!
+      @body = @curl_res.body
+      @failed = @curl_res.code
+    end
+    
+    def log_failed(action)
+      L.debug "Failed #{action} from #{@curl.last_effective_url}, take a look at my @body for info; my object_id is #{object_id}"
+    end
+    
+    def parse_xml(*)
+      @body = @curl_res.body.xml_to_utf
+      to_xml
+    rescue StandardError => e
+      L.warn "Exception raised during `to_xml': #{e.inspect}"
+      log_failed "to parse page as XML"
+      failed!
+    end
+    
+    def parse_html(opts={})
+      @body = @curl_res.body.xml_to_utf
+      to_html
+      if opts[:eval]
+        load_scripts opts[:load_scripts]
+        eval_js
+      end
+    rescue StandardError => e
+      L.warn "Exception raised during `to_html': #{e.inspect}"
+      log_failed "to parse page as HTML"
+      failed!
+    end
+      
+    def parse_json(*)
+      @json = true
+      begin
+        @data = @curl_res.body.from_json
+      rescue StandardError => e
+        L.warn "Exception raised during `from_json': #{e.inspect}"
+      end
+      if !@data or @data.is String
+        log_failed "to get JSON"
+        failed!
+        @data = false
+      end
+    end
+    
+    def parse_hash(*)
+      if @curl_res.body.inline
+        @data = @curl_res.body.to_params
+      else
+        log_failed "to get url-params hash"
+        failed!
+        @data = false
+      end
+    end
+    
+  public
     
     # We can then alternate #process in Page subclasses
     # Frame doesn't mind about value returned by #process
@@ -169,6 +198,7 @@ module RHACK
       L.debug "#{@loc.fullpath} -> #{@curl_res}"
       parse(opts)
     end
+    
     
     def eval_js(frame=nil)
       eval_string "document.location = window.location = #{@loc.to_json};
@@ -434,7 +464,7 @@ module RHACK
     end
     
     
-    ### OLD DEPRECATED ###
+    ### DEPRECATED ###
     
     # TODO: make into same form as #get_src and #map
     def get_srcs(links='img')
@@ -476,6 +506,75 @@ module RHACK
     
     def load_scripts(frame)
       frame && frame.get_cached(*get_srcs("script[src]")).each {|js| eval_string js}
+    end
+    
+  end
+  
+  ### Pages with specific processing
+  
+  class XmlPage < Page
+    
+    # override this in a subclass
+    # MUST return self if successful
+    # MAY return false otherwise
+    def parse(opts={})
+      if failed?
+        failed!
+      else
+        parse_xml opts
+      end
+      self
+    end
+    
+  end
+  
+  
+  class HtmlPage < Page
+    
+    # override this in a subclass
+    # MUST return self if successful
+    # MAY return false otherwise
+    def parse(opts={})
+      if failed?
+        failed!
+      else
+        parse_html opts
+      end
+      self
+    end
+    
+  end
+  
+  
+  class JsonPage < Page
+    
+    # override this in a subclass
+    # MUST return self if successful
+    # MAY return false otherwise
+    def parse(opts={})
+      if failed?
+        failed!
+      else
+        parse_json opts
+      end
+      self
+    end
+    
+  end
+  
+  
+  class HashPage < Page
+    
+    # override this in a subclass
+    # MUST return self if successful
+    # MAY return false otherwise
+    def parse(opts={})
+      if failed?
+        failed!
+      else
+        parse_hash opts
+      end
+      self
     end
     
   end

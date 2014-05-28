@@ -17,17 +17,12 @@ RHACK is Ruby Http ACcess Kit: curl-based web-client framework created for devel
 
 It's still randomly documented since it's just my working tool.
 
-#### Main goals for 1.x
-
-* More agile response postprocessing configuration. Instead of using :json, :hash etc as a flag, define some "before filters" in the Page and chain them.
-* Route :xhr option to the Scout; add some transparent control on user-agents: desktop, mobile, randomly predefined...
-
 #### Main goals for 2.0
-(if it would ever come)
 
-* Full javascript processing, including linked scripts; maybe support of other javascript engines gems.
-* Distributed proxified downloading of large files.
-* Console real-time speedometer for a downloader. Wait... for f--ks sake?
+* Documented examples with Scout, Frame and Client
+* Tests for Scout and Frame to interpret requests
+* Tests for Scout, Page and Page subclasses to process fictive results
+* Add some transparent control on user-agents: desktop, mobile, randomly predefined...
 
 ### CHANGES
 
