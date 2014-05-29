@@ -11,7 +11,6 @@ module RHACK
     class_attribute :frame_defaults
     class_attribute :accounts
     class_attribute :routes
-    alias_constant :URI
     
     @@frame_defaults = {}
     @@accounts = {}
@@ -46,6 +45,11 @@ module RHACK
         @@accounts.merge! dict
       end
       
+    end
+    
+    # URI is deprecated # backward compatibility
+    def URI
+      @@routes
     end
     
     def initialize(service=:api, opts={})
