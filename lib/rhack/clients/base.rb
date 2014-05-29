@@ -22,8 +22,6 @@ module RHACK
         child.class_eval {
           include RHACK
           __init__
-          # URI is deprecated # backward compatibility
-          URI = @@routes
         }
       end
       
@@ -32,7 +30,9 @@ module RHACK
       # Set routes map
       def map(dict)
         # URI is deprecated # backward compatibility
-        URI.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
+        if defined? URI and URI.is Hash
+          URI.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
+        end
         @@routes.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
       end
       
@@ -51,11 +51,10 @@ module RHACK
     
     def initialize(service=:api, opts={})
       @service = service
-      opts = args.first
       # first argument should be a string so that frame won't be static
       @f = opts.is_a?(Frame) ? 
         opts : 
-        Frame(URI(service) || URI(:login), @@frame_defaults.merge(opts))
+        Frame(route(service) || route(:login), @@frame_defaults.merge(opts))
     end
     
     
@@ -64,8 +63,8 @@ module RHACK
       Curl.run
       @f[0].cookies.clear
       json, wait, @f.opts[:json], @f.opts[:wait] = @f.opts[:json], @f.opts[:wait], false, true
-      yield @f.get(URI :login)
-      @f.get(URI :home) if URI :home
+      yield @f.get(route :login)
+      @f.get(route :home) if route :home
       @f.opts[:json], @f.opts[:wait] = json, wait
       @f.copy_cookies!
     end
@@ -92,10 +91,11 @@ module RHACK
     
     # shortcuts to class variables #
     
-    def url(name)
+    def route(name)
       @@routes[name]
     end
-    alias :route :url
+    alias :URI :route
+    alias :url :route
     
     def account(name)
       @@accounts[name]

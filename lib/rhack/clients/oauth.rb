@@ -91,7 +91,7 @@ module RHACK
         url_params[:redirect_uri].sub!(/^\w+/, redirect_protocol)
       end
       L.debug url_params
-      @oauth_url = URI(:oauth)[:auth] + {
+      @oauth_url = route(:oauth)[:auth] + {
         response_type: 'code', 
         client_id: OAUTH(:id),
         state: state
@@ -117,7 +117,7 @@ module RHACK
         url_params[:redirect_uri].sub!(/^\w+/, redirect_protocol)
       end
       L.debug url_params
-      @f.run({}, URI(:oauth)[:token] + {
+      @f.run({}, route(:oauth)[:token] + {
         grant_type: 'authorization_code',
         client_id: OAUTH(:id), 
         client_secret: OAUTH(:secret)
@@ -141,7 +141,7 @@ module RHACK
     end
     
     def get_application_oauth_token(&block)
-      @f.run(URI(:oauth)[:token] + {
+      @f.run(route(:oauth)[:token] + {
         grant_type: 'client_credentials',
         client_id: OAUTH(:id), 
         client_secret: OAUTH(:secret)
@@ -198,7 +198,7 @@ module RHACK
       L.debug [action_data, action, token]
       opts = {proc_result: block, headers: {'Referer' => nil}, result: CodeIndiffirentPage}.merge(opts)
       # TODO: option to 
-      @f.run(URI(:api) % {action: action} + token, opts) {|page|
+      @f.run(route(:api) % {action: action} + token, opts) {|page|
         if page.hash and page.hash != true and error = page.hash.error
           L.debug state_params
           if error.code.in([190, 100]) and state_params
