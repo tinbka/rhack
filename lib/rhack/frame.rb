@@ -328,8 +328,9 @@ module RHACK
           RMTools.rw @write_to+'/'+order[-2].sub(/^[a-z]+:\/\//, ''), curl.res.body.xml_to_utf
         end
         if opts[:raw]
-          page.res = yield curl
+          page.res = block_given? ? yield(curl) : curl.body_str
       #   here +curl.res.body+ becomes empty
+      #   curl.res.body.+xml_to_utf+ -- maybe this is problem?
         elsif page.process(curl, opts)
           @@cache[page.href] = page if order[0] == :loadGet and @use_cache
           run_callbacks! page, opts, &callback

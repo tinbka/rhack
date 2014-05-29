@@ -94,8 +94,9 @@ module RHACK
     def route(name)
       @@routes[name]
     end
-    alias :URI :route
     alias :url :route
+    # URI is deprecated # backward compatibility
+    alias :URI :route
     
     def account(name)
       @@accounts[name]

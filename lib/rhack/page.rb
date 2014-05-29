@@ -43,7 +43,7 @@ module RHACK
     @@ignore = /google|_gat|tracker|adver/i
       
       # Frame calls it with no args
-    def initialize(obj='', loc=Hash.new(''), js=Johnson::Runtime.browser||Johnson::Runtime.new)
+    def initialize(obj='', loc=Hash.new(''), js=is_a?(HtmlPage)&&(Johnson::Runtime.browser||Johnson::Runtime.new))
       loc = loc.parse:uri if !loc.is Hash
       @js = js
       if obj.is Curl::Easy or obj.kinda Scout
