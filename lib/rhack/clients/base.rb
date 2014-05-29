@@ -22,6 +22,8 @@ module RHACK
         child.class_eval {
           include RHACK
           __init__
+          # URI is deprecated # backward compatibility
+          URI = @@routes
         }
       end
       
@@ -45,11 +47,6 @@ module RHACK
         @@accounts.merge! dict
       end
       
-    end
-    
-    # URI is deprecated # backward compatibility
-    def URI
-      @@routes
     end
     
     def initialize(service=:api, opts={})
