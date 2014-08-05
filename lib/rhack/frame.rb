@@ -216,11 +216,15 @@ module RHACK
       
       (opts[:headers] ||= {})['X-Requested-With'] = 'XMLHttpRequest' if opts[:xhr]
       if opts[:content_type]
-        if mime_type = Mime::Type.lookup_by_extension(opts[:content_type])
-          (opts[:headers] ||= {})['Content-Type'] = mime_type
+        if opts[:content_type].is Symbol
+          if mime_type = Mime::Types.of(opts[:content_type])[0]
+            (opts[:headers] ||= {})['Content-Type'] = mime_type.content_type
+          else
+            raise ArgumentError, "failed to detect Mime::Type by extension: #{opts[:content_type]}
+        (#{args.inspect[1..-2]})"
+          end
         else
-          raise ArgumentError, "failed to detect Mime::Type by extension: #{opts[:content_type]}
-      (#{args.inspect[1..-2]})"
+          (opts[:headers] ||= {})['Content-Type'] = opts[:content_type]
         end
       end
       

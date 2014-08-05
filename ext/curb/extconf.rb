@@ -2,6 +2,9 @@ require 'mkmf'
 
 dir_config('curl')
 
+# https://github.com/sparklemotion/nokogiri/issues/680
+$CFLAGS << ' -Wno-format-security'
+
 if find_executable('curl-config')
   $CFLAGS << " #{`curl-config --cflags`.strip} -g"
   if ENV['STATIC_BUILD']

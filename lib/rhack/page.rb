@@ -513,6 +513,7 @@ module RHACK
   ### Pages with specific processing
   
   class XmlPage < Page
+    __init__
     
     # override this in a subclass
     # MUST return self if successful
@@ -530,6 +531,7 @@ module RHACK
   
   
   class HtmlPage < Page
+    __init__
     
     # override this in a subclass
     # MUST return self if successful
@@ -547,6 +549,7 @@ module RHACK
   
   
   class JsonPage < Page
+    __init__
     
     # override this in a subclass
     # MUST return self if successful
@@ -564,6 +567,7 @@ module RHACK
   
   
   class HashPage < Page
+    __init__
     
     # override this in a subclass
     # MUST return self if successful

@@ -16,13 +16,13 @@ Gem::Specification.new do |spec|
   spec.files         = `git ls-files`.split($/)
   spec.require_paths = ["lib"]
   
-  spec.add_runtime_dependency "activesupport"
+  spec.add_runtime_dependency "activesupport", "~> 3"
   #spec.add_runtime_dependency "redis"
-  spec.add_runtime_dependency "rmtools", ">= 2.3.6"
-  spec.add_runtime_dependency "libxml-ruby"
+  spec.add_runtime_dependency "rmtools", "~> 2.3"
+  spec.add_runtime_dependency "libxml-ruby", "~> 2.7"
   
   spec.extensions << 'ext/curb/extconf.rb'
 
-  spec.add_development_dependency "bundler"
-  spec.add_development_dependency "rake"
+  spec.add_development_dependency "bundler", "~> 0"
+  spec.add_development_dependency "rake", "~> 0"
 end

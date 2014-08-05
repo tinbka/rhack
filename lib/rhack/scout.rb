@@ -133,22 +133,37 @@ module RHACK
       uri
     end
 
-    def mkBody(params, multipart=nil)
+    def mkBody(params, multipart=false)
       if multipart
         @http.multipart_post_body = @body = params.map {|k, v|
           v = v.call if v.is Proc
-          if k =~ /^f:/
-            Curl::PostField.file(k[2..-1], "application/octet-stream", 
-                                     "#{randstr(16, :hex)}.jpg", v+randstr )
-          elsif k =~ /^p:/
-            Curl::PostField.file(k[2..-1], "application/octet-stream", 
-                                     File.basename(f), read(v)                   )
+          if v[%r(^file://(.+))] or v.is Hash
+            path = $1 || v[:path]
+            name = v.is(Hash) && v[:name] ||
+              File.basename(path)
+            content_type = v.is(Hash) && v[:content_type].to_s ||
+              (Mime::Types.of(path)[0] || {}).content_type ||
+              "application/octet-stream"
+            Curl::PostField.file(k, type, name, read(path))
           else
             Curl::PostField.content(k.to_s, v.to_s)
           end
         }
       else
-        @http.post_body = @body = params.urlencode
+        @http.post_body = case params
+        when IO
+          @body = params.read
+          params.close
+          @body
+        when String
+          @body = if params[%r(^file://(.+))]
+            read $1
+          else
+            params
+          end
+        else
+          @body = params.urlencode
+        end
       end
     end
     
@@ -312,6 +327,9 @@ module RHACK
     def loadPost(*argv, &callback)
       hash, multipart, uri, opts = argv.get_opts [@body, @http.multipart_form_post?, @path], :headers => {}, :redir => false, :relvl => 2
       @http.delete = false
+      unless hash.is Hash # not parameterized
+        opts[:headers] = opts[:headers].reverse_merge 'Content-Type' => 'application/octet-stream'
+      end
       mkBody hash, multipart.b
       @last_method	= :post
       if block_given?
