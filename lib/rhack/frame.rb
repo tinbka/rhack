@@ -31,7 +31,7 @@ module RHACK
       #if scouts = (opts[:scouts] || opts[:threads])
       #  args[-1] = scouts
       #end
-      opts = args.find_by_class Hash
+      opts = args.find_by_class(Hash) || {}
       scouts_count = opts[:scouts] || opts[:threads] || 10
       @opts = {:eval => Johnson::Enabled, :redir => true, :cp => true, :result => Page}.merge!(opts)
       if args[0].is String
@@ -123,7 +123,8 @@ module RHACK
       L.log [body, mp, url, opts]
       zip = opts.delete :zip
       verb = opts.delete :verb
-      post = put = verb == :put
+      put = verb == :put
+      post = put || verb == :post
       many = order = orders = false
       
       if put
@@ -142,9 +143,13 @@ module RHACK
         # L.debug "URL #{url.inspect} has been passed as second argument instead of third"
         # But if we have only one argument actually passed 
         # except for options hash then believe it's GET
-        elsif body.is String or body.kinda [String]
-          L.debug "first parameter (#{body.inspect}) was implicitly taken as url#{' '+body.class if body.kinda Array}, but last paramter is of type #{url.class}, too" if url
-          url = body.dup
+        elsif body.is String or body.kinda [String] # mp is boolean
+          if post
+            url = url.dup if url
+          else
+            L.debug "first parameter (#{body.inspect}) was implicitly taken as url#{' '+body.class if body.kinda Array}, but last paramter is of type #{url.class}, too" if url
+            url = body.dup
+          end
         elsif !body
           url = nil
         else
@@ -181,8 +186,8 @@ module RHACK
          (#{args.inspect[1..-2]})"
             end
           else
-            unless body.is Hash
-              raise TypeError, "body of POST request must be a hash, params was
+            unless body.is Hash or body.is String
+              raise TypeError, "body of POST request must be a hash or a string params was
          (#{args.inspect[1..-2]})"
             end
           end
