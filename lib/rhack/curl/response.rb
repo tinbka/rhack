@@ -8,7 +8,7 @@ module Curl
     def to_s
       str = '<#'
       if @error
-        str << "#{@error[0].self_name}: #{@error[1]}"
+        str << "#{@error.name}: #{@error.message}"
       else
         str << (@header[/\d{3}/] == @code.to_s ? @header : "#{@header[/\S+/]} #{@code}") if @header
         if @hash.location
@@ -77,14 +77,16 @@ module Curl
     
     def is(klass)
       if @error
-        klass == Array || klass = Curl::Response
+        $log.warn "obsolete comparison with Array", caller: 1 if klass == Array
+        klass == Array || klass = Curl::Response # obsolete
       else
         klass == Curl::Response
       end
     end
   
-    def [](key_or_index)
-      @error ? @error[key_or_index] : @hash[key_or_index.downcase]
+    def [](key)
+      #@error ? @error[key_or_index] : @hash[key_or_index.downcase] # old
+      @hash[key.downcase]
     end
     
     alias :headers :hash

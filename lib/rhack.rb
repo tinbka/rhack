@@ -10,7 +10,6 @@ require "rhack/js/johnson"
 module RHACK
   mattr_reader :config, :redis, :useragents
   
-  Dir.chdir ENV['APP_ROOT'] if ENV['APP_ROOT']
   cfgfile = Dir['{config/,}rhack.yml'].first
   @@config = cfgfile ? YAML.load(IO.read(cfgfile)) : {}
   

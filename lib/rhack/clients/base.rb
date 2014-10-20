@@ -8,13 +8,13 @@ module RHACK
   class Client
     attr_reader :service
     attr_accessor :f
-    class_attribute :frame_defaults
-    class_attribute :accounts
-    class_attribute :routes
+    class_attribute :frame_defaults, :instance_writer => false
+    class_attribute :accounts, :instance_writer => false
+    class_attribute :routes, :instance_writer => false
     
-    @@frame_defaults = {}
-    @@accounts = {}
-    @@routes = {}
+    self.frame_defaults = {}
+    self.accounts = {}
+    self.routes = {}
     
     class << self
     
@@ -33,28 +33,35 @@ module RHACK
         if defined? URI and URI.is Hash
           URI.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
         end
-        @@routes.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
+        routes.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
       end
       
       # Set default Frame options
       def frame(dict)
-        @@frame_defaults.merge! dict
+        frame_defaults.merge! dict
       end
       
       # Set usable accounts
       # @ dict : {symbol => {symbol => string, ...}}
       def accounts(dict)
-        @@accounts.merge! dict
+        accounts.merge! dict
       end
       
     end
     
-    def initialize(service=:api, opts={})
+    def initialize(*args)
+      service, opts = args.get_opts [:api]
       @service = service
       # first argument should be a string so that frame won't be static
-      @f = opts.is_a?(Frame) ? 
-        opts : 
-        Frame(route(service) || route(:login), @@frame_defaults.merge(opts))
+      if opts.is_a?(Frame)
+        @f = opts
+      else
+        opts = frame_defaults.merge(opts)
+        if self.class.const_defined? :Result
+          opts[:result] = self.class::Result
+        end
+        @f = Frame(route(service) || route(:login), opts)
+      end
     end
     
     
@@ -79,7 +86,7 @@ module RHACK
     
     
     def scrape!(page)
-      __send__(:"scrape_#{@service}", page)
+      __send__(:"scrape_#@service", page)
       if url = next_url(page)
         @f.get(url) {|next_page| scrape!(next_page)}
       end
@@ -92,14 +99,14 @@ module RHACK
     # shortcuts to class variables #
     
     def route(name)
-      @@routes[name]
+      routes[name]
     end
     alias :url :route
     # URI is deprecated # backward compatibility
     alias :URI :route
     
     def account(name)
-      @@accounts[name]
+      accounts[name]
     end
     
   end

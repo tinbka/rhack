@@ -72,8 +72,8 @@ module RHACK
         
     def inspect
       sz = size
-      if !@data.nil?
-        "<##{self.class.name} (#{@data == false ? 'failed to parse' : sz.bytes}) #{@json ? 'json' : 'url params'}>"
+      if @json or @hash
+        "<##{self.class.name} (#{@data ? sz.bytes : 'failed to parse'}) #{@json ? 'json' : 'url params'}>"
       else
         "<##{self.class.name} #{sz == 0 ? '(empty)' : "#{@failed ? @curl_res.header : '«'+title(false)+'»'} (#{sz.bytes})"}#{' js enabled' if @js and @doc}>"
       end
@@ -91,7 +91,7 @@ module RHACK
     
     # override this in a subclass
     def failed?(*)
-      @curl_res.code != 200
+      @curl_res.error or @curl_res.code != 200
     end
     
     # override this in a subclass
@@ -103,14 +103,6 @@ module RHACK
     # MUST return self if successful
     # MAY return false otherwise
     def parse(opts={})
-      if failed?
-        failed!
-        if opts[:json] or opts[:hash]
-          @data = false
-        end
-        return self
-      end
-      
       if opts[:json]
         parse_json opts
       elsif opts[:hash]
@@ -120,15 +112,23 @@ module RHACK
       else
         parse_html opts
       end
-      
       self
     end
     
   private
     
+    # @failed means failure cause
+    # MUST return false if you don't want this client
+    # to call main callback in case of failure
+    # MUST return true otherwise
     def failed!
-      @body = @curl_res.body
-      @failed = @curl_res.code
+      if @curl_res.error
+        @failed = @curl_res.error
+      else
+        @body = @curl_res.body
+        @failed = @curl_res.code
+      end
+      false
     end
     
     def log_failed(action)
@@ -171,7 +171,9 @@ module RHACK
       end
     end
     
+    # urlencoded
     def parse_hash(*)
+      @hash = true
       if @curl_res.body.inline
         @data = @curl_res.body.to_params
       else
@@ -184,15 +186,22 @@ module RHACK
   public
     
     # We can then alternate #process in Page subclasses
-    # Frame doesn't mind about value returned by #process
-    def process(c, opts={})
-      @loc = c.last_effective_url.parse:uri
-      @curl = c
-      @curl_res = c.res
+    # Frame doesn't mind about the value returned by #process
+    # unless it is nil or false
+    def process(curl, opts={})
+      @loc = curl.last_effective_url.parse :uri
+      @curl = curl
+      @curl_res = curl.res
       
-      if retry?
-        c.retry!
-        return # callback will not proceed
+      if failed?
+        should_proceed = failed! # false by default
+        if retry?
+          curl.retry!
+          return false # callback will not proceed
+        end
+        unless should_proceed
+          return false # nor callback or retry will not proceed
+        end
       end
       
       L.debug "#{@loc.fullpath} -> #{@curl_res}"
@@ -519,11 +528,7 @@ module RHACK
     # MUST return self if successful
     # MAY return false otherwise
     def parse(opts={})
-      if failed?
-        failed!
-      else
-        parse_xml opts
-      end
+      parse_xml opts
       self
     end
     
@@ -537,11 +542,7 @@ module RHACK
     # MUST return self if successful
     # MAY return false otherwise
     def parse(opts={})
-      if failed?
-        failed!
-      else
-        parse_html opts
-      end
+      parse_html opts
       self
     end
     
@@ -555,11 +556,7 @@ module RHACK
     # MUST return self if successful
     # MAY return false otherwise
     def parse(opts={})
-      if failed?
-        failed!
-      else
-        parse_json opts
-      end
+      parse_json opts
       self
     end
     
@@ -573,11 +570,7 @@ module RHACK
     # MUST return self if successful
     # MAY return false otherwise
     def parse(opts={})
-      if failed?
-        failed!
-      else
-        parse_hash opts
-      end
+      parse_hash opts
       self
     end
     

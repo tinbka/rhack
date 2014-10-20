@@ -22,6 +22,7 @@ module RHACK
   class Frame
     __init__
     attr_reader :loc, :static, :ss, :opts, :use_cache, :write_to
+    alias options opts
     @@cache = {}
     
     def initialize *args
@@ -56,7 +57,7 @@ module RHACK
       @ss.update to, forced
       update_loc to
     end
-    alias :target= :retarget
+    alias target= retarget
     
     def anchor
       retarget @loc.href
@@ -222,7 +223,7 @@ module RHACK
       (opts[:headers] ||= {})['X-Requested-With'] = 'XMLHttpRequest' if opts[:xhr]
       if opts[:content_type]
         if opts[:content_type].is Symbol
-          if mime_type = Mime::Types.of(opts[:content_type])[0]
+          if mime_type = MIME::Types.of(opts[:content_type])[0]
             (opts[:headers] ||= {})['Content-Type'] = mime_type.content_type
           else
             raise ArgumentError, "failed to detect Mime::Type by extension: #{opts[:content_type]}
@@ -329,6 +330,17 @@ module RHACK
       page = opts[:result].new
       # if no spare scouts can be found, squad simply waits for first callbacks to complete
       s = @ss.next
+      s.http.on_failure {|curl, error|
+        if s.process_failure(*error)
+          # curl itself has decided not to retry a request
+          if opts[:raw]
+            page.res = s.error
+          elsif page.process(curl, opts)
+            run_callbacks! page, opts, &callback
+            # nothing to do here if process returns nil or false
+          end
+        end
+      }
       s.send(*(order << opts)) {|curl|
       #   there is a problem with storing html on disk
         if order[0] == :loadGet and @write_to
@@ -343,7 +355,7 @@ module RHACK
         elsif page.process(curl, opts)
           @@cache[page.href] = page if order[0] == :loadGet and @use_cache
           run_callbacks! page, opts, &callback
-        # nothing to do here if process returns nil or false
+          # nothing to do here if process returns nil or false
         end
       }
       # > Carier.requests++

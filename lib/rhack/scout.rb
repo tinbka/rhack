@@ -142,7 +142,7 @@ module RHACK
             name = v.is(Hash) && v[:name] ||
               File.basename(path)
             content_type = v.is(Hash) && v[:content_type].to_s ||
-              (Mime::Types.of(path)[0] || {}).content_type ||
+              (MIME::Types.of(path)[0] || {}).content_type ||
               "application/octet-stream"
             Curl::PostField.file(k, type, name, read(path))
           else
@@ -208,11 +208,11 @@ module RHACK
         cks.map2 {|k, v| Cookie(k, v)}   
     end
     
-    def retry?(eclass)
+    def retry?(curl_err)
       # sites = ['0chan.ru', '2-ch.ru', 'www.nomer.org', 'nomer.org'].select_in('http://www.nomer.org') = ['www.nomer.org', 'nomer.org']
       sites = (@@retry.keys + @retry.keys).select_in @root
       return false if sites.empty?
-      errname = eclass.self_name
+      errname = curl_err.self_name
       # retry = ['www.nomer.org', 'nomer.org'].any? {|www| {'nomer.org' => ['TimeoutError']}[www].include? 'TimeoutError'}
       sites.any? {|site|
         (@@retry[site] || []).include? errname or 
@@ -235,6 +235,27 @@ module RHACK
       !loaded?
     end
     
+    # - if curl should retry request based on Curl::Err class only
+    #   => false
+    def process_failure(curl_err, message)
+      @error = curl_err.new message
+      #@error = [curl_err, message] # old
+      @http.outdate!
+      # we must clean @http.on_complete, otherwise
+      # it would run right after this function and with broken data
+      @http.on_complete &Proc::NULL
+      if retry? curl_err
+        L.debug "#{curl_err} -> reloading scout"
+        retry!
+        false
+      else
+        L.debug "#{curl_err} -> not reloading scout"
+        raise @error if @raise_err
+        #raise *@error if @raise_err # old
+        true
+      end
+    end
+    
     def load!
       unless Curl.carier.add @http
         Curl.carier.remove @http
@@ -253,7 +274,7 @@ module RHACK
     end
     
     def load(path=@path, headers={}, not_redir=1, relvl=10, &callback)
-      # cache preprocessed data for one time for we can do #retry
+      # cache preprocessed data for one time so we can do #retry
       @__path = path
       @__headers = headers
       @__not_redir = not_redir
@@ -264,36 +285,25 @@ module RHACK
       @http.headers = mkHeader(path).merge!(headers)
       @http.timeout = @timeout
 
-      @http.on_complete {|c|
+      @http.on_complete {|curl| # = @http
         # > Carier.requests--
         @error = nil
         # While not outdated, Curl::Response here may contain pointers on freed
         # memory, thus throwing exception on #to_s and #inspect
-        c.outdate!
-        ProcCookies c.res if @cookieProc
+        @http.outdate!
+        res = @http.res
+        ProcCookies res if @cookieProc
         # We cannot just cancel on_complete in on_redirect block
         # because loadGet will immediately reset on_complete back
-        if c.res.code.in(300..399) and !not_redir.b and (relvl -= 1) > -1 and loc = c.res.hash.location
+        if res.code.in(300..399) and !not_redir.b and (relvl -= 1) > -1 and loc = res.hash.location
           loadGet(loc, headers: headers, relvl: relvl, redir: true, &callback)
         elsif block_given?
-          yield c
+          yield @http
         end
       }
-      @http.on_failure {|c, e|
-        eclass = e[0]
-        @error = e
-        c.outdate!
-        # we must clean @http.on_complete, otherwise
-        # it would run right after this function and with broken data
-        @http.on_complete &Proc::NULL
-        if retry? eclass
-          L.debug "#{eclass} -> reloading scout"
-          retry!
-        else
-          L.debug "#{eclass} -> not reloading scout"
-          raise *e if @raise_err
-        end
-      } if !@http.on_failure
+      @http.on_failure {|curl, error|
+        process_failure(*error)
+      } unless @http.on_failure
       
       load!
     end
