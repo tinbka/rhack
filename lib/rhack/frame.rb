@@ -90,17 +90,36 @@ module RHACK
     
     def inspect
       sssize = @ss.size
-      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{sssize} #{sssize == 1 ? 'scout' : 'scouts'}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookieProc ? 'on' : 'off'}>"
+      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{sssize} #{sssize == 1 ? 'scout' : 'scouts'}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookie_enabled ? 'on' : 'off'}>"
     end
     
     # All opts going in one hash.
     # Opts for Frame:
-    #   :wait, :proc_result, :save_result, :zip, :thread_safe, :result, :stream, :raw, :xhr, :content_type
-    # Opts passed to Page:
+    #   :wait, :sync, :thread_safe, :raw, :proc_result, :save_result, :zip, :result, :stream
+    #   ... processed and passed to Scout:
+    #     :xhr, :content_type, :auth
+    # Opts passed to result:
     #   :xml, :html, :json, :hash, :eval, :load_scripts
-    # Opts for Scout:
+    # Opts passed to Scout:
     #   :headers, :redir, :relvl
-    # TODO: describe options
+    #
+    # @ :result : враппер результата исполнения; по умолчанию Page, для Client — если определён — Result; при асинхронном вызове будет возвращён незамедлительно
+    # @ &callback : в него будет передан инстанс result, а его результат будет записан в result#res (по умолчанию это ссылка на себя)
+    # @ :thread_safe : не использовать луп исполнения Curl::Multi#perform, а вызывать #perform прямо в этом треде; если установлен, то невозможно прерывание исполнения клавиатурой (продолжит работать, выполняя колбеки, в фоне), и невозможно задавать больше параллельных реквестов, чем разрешено параллельных соединений (просто застрянет)
+    # @ :sync : остановить (Thread#kill) perform-loop после исполнения всех запросов; подразумевает wait=true; при вызове одиночного реквеста подразумевает thread_safe=true
+    # @ :wait : ждать исполнения всех реквестов
+    # @ :save_result: возвращает #res для каждого инстанса result вместо самого инстанса; если не задан :proc_result, то подразумевает wait=true
+    # @ :proc_result: Proc, в который будет передан result#res, если задан также &callback; служит для создания вложенных блоков для клиентов; если =nil, то подразумевает wait=true
+    # @ :raw : сохраняем *только* тело ответа, без хедеров, без отладочной инфы в #res
+    # @ :raw + :sync : подразумевает save_result=true
+    # @ :xhr, :content_type, :auth : формируют хедеры X-Requested-With, Content-Type, Authorization для передачи в Scout
+    # @ :xhr : boolean
+    # @ :content_type : symbol<extension>  |  raw string
+    # @ :auth : "<username>:<password>"
+    # 
+    # @ :zip, :stream и все опции для result : deprecated
+    #
+    # TODO: Семантически разделить синхронное и асинхронное выполнение запросов (не важно, серии или отдельных), с учётом, что асинхронность по сути своей перегружена и требуется, например, в очередях сообщений, но не в синхронных контроллерах Rails
     def exec *args, &callback
       many, order, orders, with_opts = interpret_request *args
       L.log({:many => many, :order => order, :orders => orders, :with_opts => with_opts})
@@ -113,8 +132,15 @@ module RHACK
       # if we aren't said explicitly about the opposite
       Johnson::Runtime.set_browser_for_curl with_opts
       
-      if many then	exec_many orders, with_opts, &callback
-      else 	          exec_one order, with_opts, &callback    end
+      if many
+        result = exec_many orders, with_opts, &callback
+      else
+        result = exec_one order, with_opts, &callback
+      end
+      if with_opts[:sync]
+        Curl.stop
+      end
+      result
     end
     alias :get :exec
     alias :run :get
@@ -218,7 +244,13 @@ module RHACK
                     
       opts[:eval] = false if opts[:json] or opts[:hash] or opts[:raw]
       opts[:load_scripts] = self if opts[:load_scripts]
-      opts[:stream] = true if opts[:raw]
+      opts[:save_result] = true if opts[:wait] and opts[:raw]
+      
+      if orders
+        opts[:thread_safe] = false if @ss.size < orders.size
+      else
+        opts[:thread_safe] = true if opts[:sync]
+      end
       
       (opts[:headers] ||= {})['X-Requested-With'] = 'XMLHttpRequest' if opts[:xhr]
       if opts[:content_type]
@@ -232,6 +264,9 @@ module RHACK
         else
           (opts[:headers] ||= {})['Content-Type'] = opts[:content_type]
         end
+      end
+      if opts[:auth]
+        (opts[:headers] ||= {})['Authorization'] = "Basic #{Base64.encode64(opts[:auth])}".chop
       end
       
       [many, order, orders, opts]
@@ -331,7 +366,7 @@ module RHACK
       # if no spare scouts can be found, squad simply waits for first callbacks to complete
       s = @ss.next
       s.http.on_failure {|curl, error|
-        if s.process_failure(*error)
+        s.process_failure(*error) {
           # curl itself has decided not to retry a request
           if opts[:raw]
             page.res = s.error
@@ -339,14 +374,14 @@ module RHACK
             run_callbacks! page, opts, &callback
             # nothing to do here if process returns nil or false
           end
-        end
+        }
       }
       s.send(*(order << opts)) {|curl|
       #   there is a problem with storing html on disk
         if order[0] == :loadGet and @write_to
       #     sometimes  (about 2% for 100-threads-dling) when this string is calling
       #     no matter what +curl.res.body+ has contained here
-          RMTools.rw @write_to+'/'+order[-2].sub(/^[a-z]+:\/\//, ''), curl.res.body.xml_to_utf
+          RMTools.rw @write_to+'/'+order[-2].sub(/^\w+:\/\//, ''), curl.res.body.xml_to_utf
         end
         if opts[:raw]
           page.res = block_given? ? yield(curl) : curl.body_str

@@ -7,7 +7,7 @@ module RHACK
     attr_accessor	:path, :root, :sld, :proxy
     attr_reader	    :uri
     attr_reader	    :webproxy, :last_method, :proxystr, :headers, :body, :http, :error
-    attr_reader	    :cookies, :ua, :refforge, :cookieStore, :cookieProc
+    attr_reader	    :cookies, :ua, :refforge, :cookies_enabled
     
     DefaultHeader = {
         "Expect"	              => "",
@@ -40,7 +40,7 @@ module RHACK
       @cookies    	= {}
       @body       	= {}
       @num    	    = []
-      @cookieProc	= opts[:cp] || opts[:ck]
+      @cookies_enabled	= opts[:cp] || opts[:ck]
       @raise_err   	= opts[:raise] # no way to use @raise id, it makes any 'raise' call here fail
       @engine     	= opts[:engine]
       @timeout    	= opts[:timeout] || @@timeout || 60
@@ -81,9 +81,9 @@ module RHACK
         @proxystr = @webproxy ? @proxy[0] : @http.proxy_url
       else @proxystr = 'localhost' 
       end
-      if @cookieProc.is Hash
-        self.main_cks = @cookieProc
-        @cookieProc = true    
+      if @cookies_enabled.is Hash
+        self.main_cks = @cookies_enabled
+        @cookies_enabled = true    
       end
       self
     end
@@ -169,7 +169,7 @@ module RHACK
     
     def mkHeader(uri)
       header = DefaultHeader.dup
-      if @cookieProc
+      if @cookies_enabled
         cookies = ''
         main_cks.each {|k, v| main_cks.delete k if v.use(cookies, @uri) == :expired}
         header['Cookie'] = cookies[0..-3]                                 
@@ -182,7 +182,7 @@ module RHACK
       header
     end
       
-    def ProcCookies(res)
+    def process_cookies(res)
       ck = []
       case res
         when String
@@ -195,11 +195,10 @@ module RHACK
       end
       return if !ck.b
       ck.each {|c| Cookie(c, self)}
-  #    StoreCookies if @cookieStore
     end
 
-    def cp_on() @cookieProc = true end
-    def cp_off() @cookieProc = false end
+    def cp_on() @cookies_enabled = true end
+    def cp_off() @cookies_enabled = false end
     
     def main_cks() @cookies[@uri.host] ||= {} end
     def main_cks=(cks)
@@ -231,13 +230,18 @@ module RHACK
       Curl.carier.reqs.include? @http
     end
     
+    # Scout must not be reused until not only response will have come,
+    # but callback will have been processed, too.
+    # Otherwise, #retry! may not work as expected:
+    # if a scout gets callback as a block argument, then it may re-run not original callback,
+    # but it's copy with another scope.
     def available?
-      !loaded?
+      !loaded? and !@busy
     end
     
     # - if curl should retry request based on Curl::Err class only
     #   => false
-    def process_failure(curl_err, message)
+    def process_failure(curl_err, message, &callback)
       @error = curl_err.new message
       #@error = [curl_err, message] # old
       @http.outdate!
@@ -247,33 +251,35 @@ module RHACK
       if retry? curl_err
         L.debug "#{curl_err} -> reloading scout"
         retry!
-        false
       else
         L.debug "#{curl_err} -> not reloading scout"
         raise @error if @raise_err
         #raise *@error if @raise_err # old
-        true
+        yield if block_given?
+        # Now, we assume that data of this @http have been copied or will not be used anymore,
+        # thus the scout can be reused.
+        @busy = false
       end
     end
     
     def load!
       unless Curl.carier.add @http
+        L.warn "#{self}##{object_id}: Failed to add Curl::Easy##{@http.object_id} to Curl::Multi##{Curl.carier.object_id}. Trying to remove it and re-add."
         Curl.carier.remove @http
         Curl.сarier.add @http
       end
     rescue RuntimeError => e
       e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
-      L.warn "#{e.inspect}: #{e.message}"
+      L.warn "#{self}##{object_id}: #{e.inspect}: #{e.message}"
       if loaded?
         Curl.carier.remove @http
       end
       sleep 1
       load!
-      #e.message << ". Failed to load allready loaded? easy handler: Bad file descriptor" unless Curl::Err::CurlError === e
-      #raise e
     end
     
     def load(path=@path, headers={}, not_redir=1, relvl=10, &callback)
+      @busy = true
       # cache preprocessed data for one time so we can do #retry
       @__path = path
       @__headers = headers
@@ -286,21 +292,28 @@ module RHACK
       @http.timeout = @timeout
 
       @http.on_complete {|curl| # = @http
-        # > Carier.requests--
+        # @http has already been removed when a request had complete,
+        # but this callback may occure wherever in a serial queue of curl callbacks.
         @error = nil
         # While not outdated, Curl::Response here may contain pointers on freed
         # memory, thus throwing exception on #to_s and #inspect
         @http.outdate!
         res = @http.res
-        ProcCookies res if @cookieProc
-        # We cannot just cancel on_complete in on_redirect block
-        # because loadGet will immediately reset on_complete back
+        process_cookies res if @cookies_enabled
+        # We cannot just cancel on_complete in on_redirect block,
+        # because loadGet should (and will) immediately reset on_complete back.
         if res.code.in(300..399) and !not_redir.b and (relvl -= 1) > -1 and loc = res.hash.location
           loadGet(loc, headers: headers, relvl: relvl, redir: true, &callback)
-        elsif block_given?
-          yield @http
+        else
+          yield @http if block_given?
+          # Now, we assume that data of this @http have been copied or will not be used anymore,
+          # thus the scout can be reused.
+          @busy = false
+          @http.on_failure &Proc::NULL
         end
       }
+      # Curl::Err::* (TCP/IP level) exception callback.
+      # May be set out there.
       @http.on_failure {|curl, error|
         process_failure(*error)
       } unless @http.on_failure

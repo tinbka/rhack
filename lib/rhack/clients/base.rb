@@ -11,6 +11,7 @@ module RHACK
     class_attribute :frame_defaults, :instance_writer => false
     class_attribute :accounts, :instance_writer => false
     class_attribute :routes, :instance_writer => false
+    class_attribute :rootpath, :instance_writer => false
     
     self.frame_defaults = {}
     self.accounts = {}
@@ -25,7 +26,24 @@ module RHACK
         }
       end
       
+      def method_missing(method, *args, &block)
+        if personal_instance_methods.include? method
+          return new.__send__(method, *args, &block)
+        end
+        super
+      end
+      
     private
+      
+      def root(value=nil)
+        if value
+          value = 'http://' + value if value !~ /^\w+:/
+          self.rootpath = value
+        else
+          self.rootpath
+        end
+      end
+      alias :host :root
       
       # Set routes map
       def map(dict)
@@ -33,25 +51,25 @@ module RHACK
         if defined? URI and URI.is Hash
           URI.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
         end
-        routes.merge! dict.map_hash {|k, v| [k.to_sym, v.freeze]}
+        self.routes += dict.map_hash {|k, v| [k.to_sym, v.freeze]}
       end
       
       # Set default Frame options
       def frame(dict)
-        frame_defaults.merge! dict
+        self.frame_defaults += dict
       end
       
       # Set usable accounts
       # @ dict : {symbol => {symbol => string, ...}}
       def accounts(dict)
-        accounts.merge! dict
+        self.accounts += dict
       end
       
     end
     
     def initialize(*args)
-      service, opts = args.get_opts [:api]
-      @service = service
+      service, opts = args.get_opts [routes.include?(:api) ? :api : nil]
+      @service = service # Deprectated. Use different classes to implement different services.
       # first argument should be a string so that frame won't be static
       if opts.is_a?(Frame)
         @f = opts
@@ -60,8 +78,12 @@ module RHACK
         if self.class.const_defined? :Result
           opts[:result] = self.class::Result
         end
-        @f = Frame(route(service) || route(:login), opts)
+        @f = Frame(rootpath || route(service) || route(:login), opts)
       end
+    end
+        
+    def inspect
+      "<##{self.class.name}#{":#{@service.to_s.camelize} service" if @service} via #{@f.inspect}>"
     end
     
     
@@ -91,15 +113,17 @@ module RHACK
         @f.get(url) {|next_page| scrape!(next_page)}
       end
     end
-        
-    def inspect
-      "<##{self.class.self_name}:#{@service.to_s.camelize} service via #{@f.inspect}>"
-    end
+    
     
     # shortcuts to class variables #
     
     def route(name)
-      routes[name]
+      if url = routes[name]
+        if url !~ /^\w+:/
+          url = File.join rootpath, url
+        end
+        url
+      end
     end
     alias :url :route
     # URI is deprecated # backward compatibility
