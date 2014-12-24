@@ -1,3 +1,3 @@
 module RHACK
-  VERSION = '1.3.3'
+  VERSION = '1.3.6'
 end

@@ -90,7 +90,7 @@ module RHACK
     
     def inspect
       sssize = @ss.size
-      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{sssize} #{sssize == 1 ? 'scout' : 'scouts'}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookie_enabled ? 'on' : 'off'}>"
+      "<#Frame @ #{@ss.untargeted ? 'no target' : @loc.root}: #{sssize} #{sssize == 1 ? 'scout' : 'scouts'}#{', static'+(' => '+@static.protocol if @static.is(Hash)) if @static}, cookies #{@ss[0].cookies_enabled ? 'on' : 'off'}>"
     end
     
     # All opts going in one hash.
@@ -103,23 +103,43 @@ module RHACK
     # Opts passed to Scout:
     #   :headers, :redir, :relvl
     #
-    # @ :result : враппер результата исполнения; по умолчанию Page, для Client — если определён — Result; при асинхронном вызове будет возвращён незамедлительно
-    # @ &callback : в него будет передан инстанс result, а его результат будет записан в result#res (по умолчанию это ссылка на себя)
-    # @ :thread_safe : не использовать луп исполнения Curl::Multi#perform, а вызывать #perform прямо в этом треде; если установлен, то невозможно прерывание исполнения клавиатурой (продолжит работать, выполняя колбеки, в фоне), и невозможно задавать больше параллельных реквестов, чем разрешено параллельных соединений (просто застрянет)
-    # @ :sync : остановить (Thread#kill) perform-loop после исполнения всех запросов; подразумевает wait=true; при вызове одиночного реквеста подразумевает thread_safe=true
-    # @ :wait : ждать исполнения всех реквестов
-    # @ :save_result: возвращает #res для каждого инстанса result вместо самого инстанса; если не задан :proc_result, то подразумевает wait=true
-    # @ :proc_result: Proc, в который будет передан result#res, если задан также &callback; служит для создания вложенных блоков для клиентов; если =nil, то подразумевает wait=true
-    # @ :raw : сохраняем *только* тело ответа, без хедеров, без отладочной инфы в #res
-    # @ :raw + :sync : подразумевает save_result=true
-    # @ :xhr, :content_type, :auth : формируют хедеры X-Requested-With, Content-Type, Authorization для передачи в Scout
+    # Формирование хедеров запроса X-Requested-With, Content-Type, Authorization для передачи в Scout:
     # @ :xhr : boolean
     # @ :content_type : symbol<extension>  |  raw string
     # @ :auth : "<username>:<password>"
+    #
+    ### Обработка результата:
+    #   преобразование к понятному для клиента формату производится в result#process
+    #   использование данных из result производится
+    #     либо в &callback (functional),
+    #     либо использованием результата #run (imperative)
+    #   в первом случае в целях сборки мусора будет возвращён 
+    # @ :result : враппер результата исполнения; по умолчанию Page, для Client — если определён — <Class>::Result; при асинхронном вызове будет возвращён незамедлительно
+    # @ &callback : в него будет передан инстанс result, а его результат будет записан в <result>.res (по умолчанию это ссылка на <result>); в целях сборки мусора, если &callback задан, #run возвращает #res для каждого инстанса result вместо самого инстанса; соответственно, если возвращаемые &callback'ом значения в дальнейшем не нужны, им следует быть nil
+    # @ :complete : при вызове нескольких реквестов, в него будет передан [ <result>.res, ... ] от каждого из них, при вызове единичного — <result>.res от него
+    # @ :raw : сохраняем в #res *только* тело ответа — без хедеров, без отладочной инфы
     # 
-    # @ :zip, :stream и все опции для result : deprecated
+    # @ [deprecated] :save_result : подразумевает callback=Proc::SELF; если не задан :proc_result, то подразумевает wait=true 
+    # @ [deprecated] :proc_result : Proc, в который будет передан result#res, если задан также &callback; если =nil, то подразумевает wait=true
+    #
+    ### Управление потоками:
+    # @ :thread_safe : не использовать луп исполнения Curl::Multi#perform, а вызывать #perform прямо в этом треде;
+    # если установлен, то невозможно прерывание исполнения клавиатурой (продолжит работать, выполняя колбеки, в фоне), и невозможно задавать больше параллельных реквестов, чем разрешено параллельных соединений (просто застрянет)
+    # @ :sync : остановить (Thread#kill) perform-loop после исполнения всех запросов; подразумевает wait=true; при вызове одиночного реквеста подразумевает thread_safe=true
+    # @ :wait : ждать исполнения всех реквестов
+    # 
+    # @ [deprecated] :zip, :stream и все опции для result
     #
     # TODO: Семантически разделить синхронное и асинхронное выполнение запросов (не важно, серии или отдельных), с учётом, что асинхронность по сути своей перегружена и требуется, например, в очередях сообщений, но не в синхронных контроллерах Rails
+    #
+    # Пример использования коллбеков в общих/common методах клиента:
+    # def api(requests, **params, &callback)
+    #   @f.run(requests, **params.slice(:complete, :sync)) {|data|
+    #     params[:before].(data)
+    #     process_result = common_process(data)
+    #     custom_result = (callback || params[:after]).(data, process_result)
+    #   } # => [ custom_result, ... ]
+    # Весь процессинг 
     def exec *args, &callback
       many, order, orders, with_opts = interpret_request *args
       L.log({:many => many, :order => order, :orders => orders, :with_opts => with_opts})
@@ -132,6 +152,9 @@ module RHACK
       # if we aren't said explicitly about the opposite
       Johnson::Runtime.set_browser_for_curl with_opts
       
+      if with_opts[:save_result]
+        callback ||= Proc::SELF
+      end
       if many
         result = exec_many orders, with_opts, &callback
       else
@@ -244,7 +267,7 @@ module RHACK
                     
       opts[:eval] = false if opts[:json] or opts[:hash] or opts[:raw]
       opts[:load_scripts] = self if opts[:load_scripts]
-      opts[:save_result] = true if opts[:wait] and opts[:raw]
+      #opts[:save_result] = true if opts[:wait] and opts[:raw]
       
       if orders
         opts[:thread_safe] = false if @ss.size < orders.size
@@ -340,11 +363,14 @@ module RHACK
         yres = callback.call page
         # if we don't want callback to affect page.res 
         # then we should not set :save_result
-        if yres != :skip
+        if yres == :skip
+          return # DEPRECATED
+        else
           if opts[:proc_result].is Proc
             # yres is intermediate result that we should proc
             page.res = opts[:proc_result].call yres
-          elsif opts[:save_result] or :proc_result.in opts
+          #elsif opts[:save_result] or :proc_result.in opts
+          else
             # yres is total result that we should save
             page.res = yres
           end
@@ -352,13 +378,16 @@ module RHACK
           # so we can return result from any depth as @res attribute of what we have on top
         end
       end
+      if opts[:complete]
+        page.res = opts[:complete].call page.res
+      end
     end
     
     # TODO: found why/how IO on callbacks breaks +curl.res.body+ content and how to fix or how to avoid it
     def exec_one(order, opts, &callback)
       if @use_cache and order[0] == :loadGet and page = @@cache[order[1]]
         run_callbacks! page, opts, &callback
-        res = opts[:wait] && (opts[:save_result] or :proc_result.in opts) ? page.res : page
+        res = opts[:wait] && (callback or :proc_result.in opts) ? page.res : page
         return res
       end
       # must result in Page (default) or it's subclass
@@ -384,6 +413,8 @@ module RHACK
           RMTools.rw @write_to+'/'+order[-2].sub(/^\w+:\/\//, ''), curl.res.body.xml_to_utf
         end
         if opts[:raw]
+          # curl.res уже создан, но
+          # вызываем curl, а не curl.res, чтобы проще было сделать retry, если нужно
           page.res = block_given? ? yield(curl) : curl.body_str
       #   here +curl.res.body+ becomes empty
       #   curl.res.body.+xml_to_utf+ -- maybe this is problem?
@@ -395,12 +426,13 @@ module RHACK
       }
       # > Carier.requests++
       unless opts[:wait] and opts[:thread_safe] or opts[:exec] == false
-        Curl.execute :unless_already
+        Curl.execute :raise_errors
       end
       if opts[:wait]
         opts[:thread_safe] ? Curl.carier.perform : Curl.wait
-        (opts[:save_result] or :proc_result.in opts) ? page.res : page
-      else page
+        (callback or opts[:raw] or :proc_result.in opts) ? page.res : page
+      else
+        page # promise
       end
     end
     
@@ -416,15 +448,32 @@ module RHACK
           exec_one order, with_opts.merge(:exec => false), &callback
         }
       else
+        if oncomplete = with_opts.delete(:complete)
+          pages = nil
+          completed_count = 0
+          original_callback = callback
+          callback = lambda {|page|
+            page.res = original_callback ? original_callback.call(page) : page
+            completed_count += 1
+            if orders.size == completed_count
+              oncomplete.call pages.ress
+            end
+            page.res
+          }
+        end
         # если ss.next будет не хватать скаутов, то он сам запустит курл
         # правда, это с :thread_safe никак не вяжется
-        pages = orders.send(iterator) {|order| exec_one order, with_opts, &callback }
+        pages = orders.send(iterator) {|order| exec_one order, with_opts, &callback}
       end
       unless w and with_opts[:thread_safe] or opts[:exec] == false
-        Curl.execute :unless_already
+        Curl.execute :raise_errors
       end
-      with_opts[:thread_safe] ? Curl.carier.perform : Curl.wait if w
-      with_opts[:stream] || pages
+      if w
+        with_opts[:thread_safe] ? Curl.carier.perform : Curl.wait
+        (callback or with_opts[:raw] or :proc_result.in with_opts) ? pages.ress : pages
+      else
+        with_opts[:stream] || pages
+      end
     end
     
   end

@@ -8,7 +8,7 @@ module Curl
     def to_s
       str = '<#'
       if @error
-        str << "#{@error.name}: #{@error.message}"
+        str << "#{@error.class.name}: #{@error.message}"
       else
         str << (@header[/\d{3}/] == @code.to_s ? @header : "#{@header[/\S+/]} #{@code}") if @header
         if @hash.location

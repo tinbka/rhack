@@ -2,14 +2,13 @@
 module Curl
   class << Curl
     
-    def execute(unless_allready=false)
-      #if unless_allready and status
-      #  return L.log "Carier allready executing"
-      #end
+    def execute(raise_errors=false)
       if @@carier_thread and s = @@carier_thread.status
         L.log "Carier Thread allready started and has status #{s}"
       else
-        if s = status(false) then L.warn s end
+        if s = status(raise_errors)
+          L.warn s
+        end
         L.log(@@carier_thread ? "Resetting Carier thread" : "Setting Carier thread up")
         @@carier_thread = thread {
           error = nil
@@ -148,7 +147,7 @@ module Curl
     end
     alias :reload! :reset!
     
-    def status(raise_error=true)
+    def status(raise_errors=true)
       if @@carier_thread and (s = @@carier_thread.status)
         L.log "Carier Thread responding with status #{s}"
         s
@@ -158,7 +157,7 @@ module Curl
           error = @@carier_thread.value
         rescue Exception => error
           L.warn "Carier Thread has raised an exception"
-          if raise_error
+          if raise_errors
             recall!
             raise error
           else
