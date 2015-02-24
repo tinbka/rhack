@@ -13,6 +13,8 @@ module RHACK
   cfgfile = Dir['{config/,}rhack.yml'].first
   @@config = cfgfile ? YAML.load(IO.read(cfgfile)) : {}
   
+  config.logger ||= {}
+  config.logger[:out] &&= File.expand_path(config.logger[:out])
   L = RMTools::RMLogger.new(config.logger || {})
   # L is automatically included in any module under RHACK
   

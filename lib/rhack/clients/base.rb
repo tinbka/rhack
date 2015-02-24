@@ -117,8 +117,11 @@ module RHACK
     
     # shortcuts to class variables #
     
-    def route(name)
+    def route(name, interpolation=nil)
       if url = routes[name]
+        if interpolation
+          url %= interpolation
+        end
         if url !~ /^\w+:/
           url = File.join rootpath, url
         end
