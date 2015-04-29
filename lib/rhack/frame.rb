@@ -25,6 +25,8 @@ module RHACK
     alias options opts
     @@cache = {}
     
+    # Opts passed to Scout:
+    #   :ck / :cp, :raise, :timeout, :retry, :redir
     def initialize *args
       #args << 10 unless args[-1].is Fixnum
       #args.insert -2, {} unless args[-2].is Hash

@@ -120,7 +120,7 @@ module RHACK
     def route(name, interpolation=nil)
       if url = routes[name]
         if interpolation
-          url %= interpolation
+          url %= interpolation.symbolize_keys
         end
         if url !~ /^\w+:/
           url = File.join rootpath, url
@@ -138,5 +138,11 @@ module RHACK
     
   end
   
+  # A server has returned an invalid response,
+  # e.g. 500 status, empty body, etc.
+  class ServerError < Exception; end
+  # A client couldn't process a possibly valid response,
+  # e.g. had had an unexpected json-structure.
   class ClientError < Exception; end
+  
 end
