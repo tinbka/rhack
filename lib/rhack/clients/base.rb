@@ -1,29 +1,42 @@
 # encoding: utf-8
-
-# TODO 1.0+: опция для клиента, чтобы это описание имело смысл, т.к. сейчас это ложь:
-#   Вызовам клиентов всегда следует ждут и возвращают обработанный ответ, если вызвваны без блока. 
-#   В противном случае используется событийная модель и обработанный ответ передаётся в блок.
 module RHACK
 
   class Client
     attr_reader :service
     attr_accessor :f
     class_attribute :frame_defaults, :instance_writer => false
+    class_attribute :scouts_initializers, :instance_writer => false
     class_attribute :accounts, :instance_writer => false
     class_attribute :routes, :instance_writer => false
     class_attribute :rootpath, :instance_writer => false
     
     self.frame_defaults = {}
+    self.scouts_initializers = []
     self.accounts = {}
     self.routes = {}
     
     class << self
     
       def inherited(child)
-        child.class_eval {
+        child.class_eval do
           include RHACK
           __init__
-        }
+          
+          # Proxying Rails router methods digging into the client namespace
+          if defined? ::Rails.application.routes.url_helpers
+            url_helpers = ::Rails.application.routes.url_helpers
+            routes_namespace = name.gsub(/::/, '').underscore.sub(/_client$/, '')
+            route_pattern = /^(.+_)?#{routes_namespace}_(.+)/
+            url_helpers.my_methods.each {|name|
+              if name.to_s[route_pattern]
+                full_route_name = $&
+                define_method "#$1#$2" do |*options|
+                  url_helpers.send full_route_name, *options
+                end
+              end
+            }
+          end
+        end
       end
       
       def method_missing(method, *args, &block)
@@ -55,8 +68,11 @@ module RHACK
       end
       
       # Set default Frame options
-      def frame(dict)
+      def frame(dict, &scout_initializer)
         self.frame_defaults += dict
+        if scout_initializer
+          self.scouts_initializers << scout_initializer
+        end
       end
       
       # Set usable accounts
@@ -77,6 +93,13 @@ module RHACK
         opts = frame_defaults.merge(opts)
         if self.class.const_defined? :Result
           opts[:result] = self.class::Result
+        end
+        if scouts_initializers = self.scouts_initializers.presence
+          opts[:on_scout_initialize] ||= lambda {|scout|
+            scouts_initializers.each {|initializer|
+              initializer.call scout
+            }
+          }
         end
         @f = Frame(rootpath || route(service) || route(:login), opts)
       end
@@ -129,20 +152,11 @@ module RHACK
       end
     end
     alias :url :route
-    # URI is deprecated # backward compatibility
-    alias :URI :route
     
     def account(name)
       accounts[name]
     end
     
   end
-  
-  # A server has returned an invalid response,
-  # e.g. 500 status, empty body, etc.
-  class ServerError < Exception; end
-  # A client couldn't process a possibly valid response,
-  # e.g. had had an unexpected json-structure.
-  class ClientError < Exception; end
   
 end

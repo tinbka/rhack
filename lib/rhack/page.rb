@@ -49,7 +49,7 @@ module RHACK
       if obj.is Curl::Easy or obj.kinda Scout
         c = obj.kinda(Scout) ? obj.http : obj
         # just (c, loc) would pass to #process opts variable that returns '' on any key
-        process(c, loc.b || {})
+        process(c, loc.presence || {})
       else
         @body = obj
         @loc = loc
@@ -57,7 +57,7 @@ module RHACK
     end
     
     def empty?
-      !@data && !@body.b
+      !@data && @body.blank?
     end
     
     def size
@@ -215,10 +215,10 @@ module RHACK
       document.domain = location.host;"
       find("script").each {|n|
         L.debug n.text.strip
-        if text = n.text.strip.b
+        if text = n.text.strip.presence
           js[:write_output] = ''
           eval_string text
-          if res = js[:write_output].b then n.after res end
+          if res = js[:write_output].presence then n.after res end
           n.remove!
         elsif frame and n.src
           eval_string frame.get_cached expand_link n.src
@@ -251,10 +251,10 @@ module RHACK
     end
     
     def title(full=true)
-      if @data.nil? and !@failed and @body.b
+      if @data.nil? and !@failed and @body.present?
         if full
           to_html unless defined? @doc
-          if @doc.title.b
+          if @doc.title.present?
             @title = @doc.title
           else
             @title = @loc.href
@@ -454,7 +454,7 @@ module RHACK
       if form_node['method'].downcase == 'post'
         [hash, form_node.enctype =~ /multipart/, action, opts]
       else
-        action = "#{action}#{action['?'] ? '&' : '?'}#{hash.urlencode}" if hash.b
+        action = "#{action}#{action['?'] ? '&' : '?'}#{hash.urlencode}" if hash.present?
         [action, opts]
       end
     end
@@ -496,7 +496,7 @@ module RHACK
     
     def get_links(links='a')
       begin
-        links = find(links).map {|e| e.href}.b || find(links+'//a').map {|e| e.href} if links.is String
+        links = find(links).map {|e| e.href}.presence || find(links+'//a').map {|e| e.href} if links.is String
       rescue LibXML::XML::Error
         links = [links]
       end

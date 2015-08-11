@@ -208,7 +208,7 @@ module RHACK
       df += '.map'
       text = read df
       $log << "mapfile read: #{text}"
-      if text.b
+      if text.present?
         text[/^(\d+)\0+(\d+)\0*\n/]
         map = {}
         $log << [$1,$2]

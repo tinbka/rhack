@@ -193,7 +193,7 @@ module RHACK
         when Curl::Response
           ck = res['cookies']
       end
-      return if !ck.b
+      return if ck.blank?
       ck.each {|c| Cookie(c, self)}
     end
 
@@ -253,12 +253,15 @@ module RHACK
         retry!
       else
         L.debug "#{curl_err} -> not reloading scout"
-        raise @error if @raise_err
-        #raise *@error if @raise_err # old
-        yield if block_given?
-        # Now, we assume that data of this @http have been copied or will not be used anymore,
-        # thus the scout can be reused.
-        @busy = false
+        begin
+          raise @error if @raise_err
+          #raise *@error if @raise_err # old
+          yield if block_given?
+        ensure
+          # Now, we assume that data of this @http have been copied or will not be used anymore,
+          # thus the scout can be reused.
+          @busy = false
+        end
       end
     end
     
@@ -302,14 +305,17 @@ module RHACK
         process_cookies res if @cookies_enabled
         # We cannot just cancel on_complete in on_redirect block,
         # because loadGet should (and will) immediately reset on_complete back.
-        if res.code.in(300..399) and !not_redir.b and (relvl -= 1) > -1 and loc = res.hash.location
+        if res.code.in(300..399) and not_redir.blank? and (relvl -= 1) > -1 and loc = res.hash.location
           loadGet(loc, headers: headers, relvl: relvl, redir: true, &callback)
         else
-          yield @http if block_given?
-          # Now, we assume that data of this @http have been copied or will not be used anymore,
-          # thus the scout can be reused.
-          @busy = false
-          @http.on_failure &Proc::NULL
+          begin
+            yield @http if block_given?
+          ensure
+            # Now, we assume that data of this @http have been copied or will not be used anymore,
+            # thus the scout can be reused.
+            @busy = false
+            @http.on_failure &Proc::NULL
+          end
         end
       }
       # Curl::Err::* (TCP/IP level) exception callback.
@@ -353,7 +359,7 @@ module RHACK
       unless hash.is Hash # not parameterized
         opts[:headers] = opts[:headers].reverse_merge 'Content-Type' => 'application/octet-stream'
       end
-      mkBody hash, multipart.b
+      mkBody hash, multipart.present?
       @last_method	= :post
       if block_given?
         @post_proc	= callback

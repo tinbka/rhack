@@ -46,6 +46,10 @@ module RHACK
         @static = false
       end
       @ss  = ScoutSquad @loc.href, @opts, scouts_count
+      # for low-level settings that are not implemented explicitly
+      if @opts[:on_scout_initialize].present?
+        each &@opts[:on_scout_initialize]
+      end
     end
     
     def update_loc url
@@ -258,7 +262,7 @@ module RHACK
           order = [del ? :loadDelete : :loadGet, url]
         end
       end
-      if !order.b and !orders.b
+      if order.blank? and orders.blank?
         raise ArgumentError, "failed to run blank request#{'s' if many}, params was
      (#{args.inspect[1..-2]})"
       end

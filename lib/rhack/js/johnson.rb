@@ -20,7 +20,7 @@ module Johnson
     class << self
       
       def runtime_set?(opts)
-        !opts[:eval].b or (@@browser and @@browser.thread_id == Curl.carier_thread.object_id)
+        opts[:eval].blank? or (@@browser and @@browser.thread_id == Curl.carier_thread.object_id)
       end
     
       # CarierThread breaks if Multi has no work && CarierThread
@@ -36,9 +36,9 @@ module Johnson
         unless runtime_set? opts
           if Curl.status
             Curl.recall
-            Curl.debug 'recalled'
+            L.debug 'recalled'
           end
-          if opts[:thread_safe].b
+          if opts[:thread_safe].present?
             @@browser = new_browser(opts[:jq])
             L.debug "#@@browser initialized in #{Thread.current}\nmain: #{Thread.main}; carier: #{Curl.carier_thread}"
           else

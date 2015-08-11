@@ -50,7 +50,7 @@ module RHACK
   if uas = uas.desktop.to_s and File.file? uas
     @@useragents = IO.read(uas)/"\n"
   else
-    @@useragents = ['Mozilla/5.0 (Windows NT 6.1; WOW64; rv:14.0) Gecko/20100101 Firefox/14.0.1']
+    @@useragents = ['Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.89 Safari/537.36']
   end
   
   class Scout
@@ -58,9 +58,9 @@ module RHACK
     mattr_accessor :retry, :timeout
     
     scout = RHACK.config.scout || {}
-    @@retry     = scout.retry.b || {}
-    @@timeout = scout.timeout.b || 60
-    @@cacert  = scout.cacert.b ? File.expand_path(scout.cacert) : File.expand_path('../../config/cacert.pem', __FILE__)
+    @@retry     = scout.retry.presence || {}
+    @@timeout = scout.timeout.presence || 60
+    @@cacert  = scout.cacert.presence ? File.expand_path(scout.cacert) : File.expand_path('../../config/cacert.pem', __FILE__)
   end
   
 end
@@ -89,5 +89,13 @@ require "rhack/scout_squad"
 require "rhack/frame"
 require "rhack/page"
 if defined? Redis::Objects
+  # redis storage for namespaced cache, oauth data etc
   require "rhack/storage"
+end
+
+module RHACK
+  # key feature
+  autoload :Client, 'rhack/clients'
+  # basic client for oauth
+  autoload :OAuthClient, 'rhack/clients/oauth'
 end

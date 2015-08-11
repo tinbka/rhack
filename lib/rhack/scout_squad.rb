@@ -62,7 +62,7 @@ module RHACK
     end
       
     def rand
-      raise PickError if !b
+      raise PickError if empty?
       # to_a because Array#reject returns object of this class
       if scout = to_a.rand_by_available?
         L.debug {"randomly picked an available scout##{scout.object_id}"}
@@ -74,7 +74,7 @@ module RHACK
     end
       
     def next
-      raise PickError if !b
+      raise PickError if empty?
       if scout = to_a.find_available?
         L.debug {"picked the next available scout##{scout.object_id}"}
         scout
@@ -86,7 +86,7 @@ module RHACK
     
     def to_s
       str = '<#ScoutSquad @ '
-      if b
+      if any?
         if first.webproxy
           str << "#{first.proxy} ~ "
         elsif first.proxy
